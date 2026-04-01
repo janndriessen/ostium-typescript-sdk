@@ -51,6 +51,11 @@ export interface TransactionResult {
   orderId?: string;
 }
 
+export interface BuilderFee {
+  builder: Address;
+  builderFee: bigint;
+}
+
 // ---------------------------------------------------------------------------
 // Subgraph response types — all onchain numerics are strings
 // ---------------------------------------------------------------------------
