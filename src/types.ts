@@ -1,4 +1,4 @@
-import type { Address } from "viem";
+import type { Address, TransactionReceipt } from "viem";
 
 export interface Logger {
   debug: (msg: string) => void;
@@ -31,7 +31,7 @@ export interface OstiumSDKConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Trading inputs
+// Trading inputs / outputs
 // ---------------------------------------------------------------------------
 
 export interface TradeParams {
@@ -43,6 +43,12 @@ export interface TradeParams {
   tp?: number;
   sl?: number;
   slippage?: number;
+}
+
+export interface TransactionResult {
+  transactionHash: string;
+  receipt: TransactionReceipt;
+  orderId?: string;
 }
 
 // ---------------------------------------------------------------------------

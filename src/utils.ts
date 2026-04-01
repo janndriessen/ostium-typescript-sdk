@@ -1,4 +1,4 @@
-import { formatUnits, parseUnits } from "viem";
+import { formatUnits, keccak256, parseUnits, type TransactionReceipt, toBytes } from "viem";
 import { OstiumError } from "./errors.js";
 import type { TradeParams } from "./types.js";
 
@@ -87,4 +87,16 @@ export function validateTradeParams(params: TradeParams): void {
   if (params.tp !== undefined) assertNonNegative(params.tp, "tp");
   if (params.sl !== undefined) assertNonNegative(params.sl, "sl");
   if (params.slippage !== undefined) assertNonNegative(params.slippage, "slippage");
+}
+
+// ---------------------------------------------------------------------------
+// Order ID extraction
+// ---------------------------------------------------------------------------
+
+const PRICE_REQUESTED_TOPIC = keccak256(toBytes("PriceRequested(uint256,bytes32,uint256)"));
+
+export function extractOrderId(receipt: TransactionReceipt): string | undefined {
+  const log = receipt.logs.find((l) => l.topics[0] === PRICE_REQUESTED_TOPIC);
+  if (!log?.topics[1]) return undefined;
+  return BigInt(log.topics[1]).toString();
 }

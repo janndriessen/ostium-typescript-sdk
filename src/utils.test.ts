@@ -1,6 +1,8 @@
+import type { Log, TransactionReceipt } from "viem";
 import { describe, expect, it } from "vitest";
 import { OstiumError } from "./errors.js";
 import {
+  extractOrderId,
   fromChainCollateral,
   fromChainPrice,
   toChainClosePercentage,
@@ -204,5 +206,35 @@ describe("validation", () => {
         OstiumError,
       );
     });
+  });
+});
+
+describe("extractOrderId", () => {
+  const PRICE_REQUESTED_TOPIC =
+    "0x8195bed39a3fd3cf674a481e5c9ebcec05361cfca110f800bedda374c24bdeea";
+
+  const mockReceipt = (logs: Partial<Log>[]) => ({ logs }) as TransactionReceipt;
+
+  it("extracts orderId from PriceRequested log", () => {
+    const orderId = 42n;
+    const receipt = mockReceipt([
+      {
+        topics: [PRICE_REQUESTED_TOPIC, `0x${orderId.toString(16).padStart(64, "0")}`] as [
+          `0x${string}`,
+          ...`0x${string}`[],
+        ],
+      },
+    ]);
+    expect(extractOrderId(receipt)).toBe("42");
+  });
+
+  it("returns undefined when no matching log", () => {
+    const receipt = mockReceipt([{ topics: ["0xdeadbeef"] as [`0x${string}`] }]);
+    expect(extractOrderId(receipt)).toBeUndefined();
+  });
+
+  it("returns undefined for empty logs", () => {
+    const receipt = mockReceipt([]);
+    expect(extractOrderId(receipt)).toBeUndefined();
   });
 });
