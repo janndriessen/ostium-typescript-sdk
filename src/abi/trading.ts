@@ -1,0 +1,93 @@
+export const tradingAbi = [
+  {
+    type: "function",
+    name: "openTrade",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "t",
+        type: "tuple",
+        components: [
+          { name: "collateral", type: "uint256" },
+          { name: "openPrice", type: "uint192" },
+          { name: "tp", type: "uint192" },
+          { name: "sl", type: "uint192" },
+          { name: "trader", type: "address" },
+          { name: "leverage", type: "uint32" },
+          { name: "pairIndex", type: "uint16" },
+          { name: "index", type: "uint8" },
+          { name: "buy", type: "bool" },
+        ],
+      },
+      {
+        name: "bf",
+        type: "tuple",
+        components: [
+          { name: "builder", type: "address" },
+          { name: "builderFee", type: "uint32" },
+        ],
+      },
+      { name: "orderType", type: "uint8" },
+      { name: "slippageP", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "closeTradeMarket",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "pairIndex", type: "uint16" },
+      { name: "index", type: "uint8" },
+      { name: "closePercentage", type: "uint16" },
+      { name: "marketPrice", type: "uint192" },
+      { name: "slippageP", type: "uint32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "updateTp",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "pairIndex", type: "uint16" },
+      { name: "index", type: "uint8" },
+      { name: "newTp", type: "uint192" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "updateSl",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "pairIndex", type: "uint16" },
+      { name: "index", type: "uint8" },
+      { name: "newSl", type: "uint192" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "cancelOpenLimitOrder",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "pairIndex", type: "uint16" },
+      { name: "index", type: "uint8" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "updateOpenLimitOrder",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "pairIndex", type: "uint16" },
+      { name: "index", type: "uint8" },
+      { name: "price", type: "uint192" },
+      { name: "tp", type: "uint192" },
+      { name: "sl", type: "uint192" },
+    ],
+    outputs: [],
+  },
+] as const;
