@@ -29,3 +29,15 @@ export interface OstiumSDKConfig {
   logger?: Logger;
   builder?: BuilderConfig;
 }
+
+export interface PriceData {
+  feed_id: string;
+  bid: number;
+  mid: number;
+  ask: number;
+  isMarketOpen: boolean;
+  isDayTradingClosed: boolean;
+  from: string;
+  to: string;
+  timestampSeconds: number;
+}
