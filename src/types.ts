@@ -31,6 +31,21 @@ export interface OstiumSDKConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Trading inputs
+// ---------------------------------------------------------------------------
+
+export interface TradeParams {
+  collateral: number;
+  leverage: number;
+  pairIndex: number;
+  direction: "long" | "short";
+  orderType: "market" | "limit" | "stop";
+  tp?: number;
+  sl?: number;
+  slippage?: number;
+}
+
+// ---------------------------------------------------------------------------
 // Subgraph response types — all onchain numerics are strings
 // ---------------------------------------------------------------------------
 

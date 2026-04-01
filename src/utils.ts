@@ -1,4 +1,6 @@
 import { formatUnits, parseUnits } from "viem";
+import { OstiumError } from "./errors.js";
+import type { TradeParams } from "./types.js";
 
 export const toChainPrice = (price: number): bigint => parseUnits(String(price), 18);
 
@@ -13,3 +15,76 @@ export const toChainLeverage = (lev: number): bigint => parseUnits(String(lev), 
 export const toChainSlippage = (slippage: number): bigint => parseUnits(String(slippage), 2);
 
 export const toChainClosePercentage = (pct: number): bigint => parseUnits(String(pct), 2);
+
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
+
+function assertInteger(value: number, name: string, min: number, max: number): void {
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new OstiumError(`Invalid ${name}: ${value}`, {
+      suggestion: `${name} must be an integer between ${min} and ${max}`,
+    });
+  }
+}
+
+function assertPositive(value: number, name: string): void {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
+    throw new OstiumError(`Invalid ${name}: ${value}`, {
+      suggestion: `${name} must be greater than 0`,
+    });
+  }
+}
+
+function assertNonNegative(value: number, name: string): void {
+  if (typeof value !== "number" || Number.isNaN(value) || value < 0) {
+    throw new OstiumError(`Invalid ${name}: ${value}`, {
+      suggestion: `${name} must be 0 or greater`,
+    });
+  }
+}
+
+export function validatePairIndex(pairIndex: number): void {
+  assertInteger(pairIndex, "pairIndex", 0, 65535);
+}
+
+export function validateTradeIndex(index: number): void {
+  assertInteger(index, "tradeIndex", 0, 255);
+}
+
+export function validateOrderIndex(index: number): void {
+  assertInteger(index, "orderIndex", 0, 255);
+}
+
+export function validateClosePercentage(pct: number): void {
+  assertInteger(pct, "closePercentage", 1, 100);
+}
+
+export function validatePrice(price: number): void {
+  assertPositive(price, "price");
+}
+
+const VALID_DIRECTIONS = new Set(["long", "short"]);
+const VALID_ORDER_TYPES = new Set(["market", "limit", "stop"]);
+
+export function validateTradeParams(params: TradeParams): void {
+  assertPositive(params.collateral, "collateral");
+  assertPositive(params.leverage, "leverage");
+  validatePairIndex(params.pairIndex);
+
+  if (!VALID_DIRECTIONS.has(params.direction)) {
+    throw new OstiumError(`Invalid direction: ${params.direction}`, {
+      suggestion: "direction must be 'long' or 'short'",
+    });
+  }
+
+  if (!VALID_ORDER_TYPES.has(params.orderType)) {
+    throw new OstiumError(`Invalid orderType: ${params.orderType}`, {
+      suggestion: "orderType must be 'market', 'limit', or 'stop'",
+    });
+  }
+
+  if (params.tp !== undefined) assertNonNegative(params.tp, "tp");
+  if (params.sl !== undefined) assertNonNegative(params.sl, "sl");
+  if (params.slippage !== undefined) assertNonNegative(params.slippage, "slippage");
+}
