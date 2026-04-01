@@ -1,0 +1,49 @@
+{
+  "name": "ostium-typescript-sdk",
+  "version": "0.1.0",
+  "description": "Unofficial TypeScript SDK for Ostium — a decentralized perpetuals exchange on Arbitrum",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "ci": "biome ci . && tsc --noEmit && vitest run",
+    "prepare": "tsup"
+  },
+  "dependencies": {
+    "graphql": "16.13.2",
+    "graphql-request": "7.4.0",
+    "viem": "2.47.6"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.10",
+    "@vitest/coverage-v8": "4.1.2",
+    "tsup": "8.5.1",
+    "typescript": "6.0.2",
+    "vitest": "4.1.2"
+  }
+}
