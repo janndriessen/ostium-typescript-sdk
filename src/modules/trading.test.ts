@@ -105,6 +105,15 @@ describe("Trading", () => {
 
       await expect(trading.openTrade(validParams, 107000)).rejects.toThrow(OstiumError);
     });
+
+    it("throws when approval receipt is reverted", async () => {
+      readContractMock.mockResolvedValue(0n);
+      writeContractMock.mockResolvedValue("0xapprovalHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.openTrade(validParams, 107000)).rejects.toThrow(OstiumError);
+    });
   });
 
   describe("openTrade", () => {
