@@ -1,7 +1,26 @@
-import type { Account, PublicClient, WalletClient } from "viem";
+import { type Account, type PublicClient, parseUnits, type WalletClient, zeroAddress } from "viem";
+import { tradingAbi } from "../abi/trading.js";
 import { usdcAbi } from "../abi/usdc.js";
 import { OstiumError } from "../errors.js";
-import type { Logger, NetworkConfig } from "../types.js";
+import type {
+  BuilderConfig,
+  Logger,
+  NetworkConfig,
+  TradeParams,
+  TransactionResult,
+} from "../types.js";
+import {
+  extractOrderId,
+  toChainCollateral,
+  toChainLeverage,
+  toChainPrice,
+  toChainSlippage,
+  validatePrice,
+  validateTradeParams,
+} from "../utils.js";
+
+const ORDER_TYPE_MAP = { market: 0, limit: 1, stop: 2 } as const;
+const DEFAULT_MARKET_SLIPPAGE = 2;
 
 export class Trading {
   private readonly publicClient: PublicClient;
@@ -9,6 +28,7 @@ export class Trading {
   private readonly account: Account;
   private readonly config: NetworkConfig;
   private readonly logger?: Logger;
+  private readonly builderConfig?: BuilderConfig;
 
   constructor(
     publicClient: PublicClient,
@@ -16,12 +36,84 @@ export class Trading {
     account: Account,
     config: NetworkConfig,
     logger?: Logger,
+    builderConfig?: BuilderConfig,
   ) {
     this.publicClient = publicClient;
     this.walletClient = walletClient;
     this.account = account;
     this.config = config;
     this.logger = logger;
+    this.builderConfig = builderConfig;
+  }
+
+  async openTrade(params: TradeParams, atPrice: number): Promise<TransactionResult> {
+    validateTradeParams(params);
+    validatePrice(atPrice);
+
+    const collateral = toChainCollateral(params.collateral);
+    const openPrice = toChainPrice(atPrice);
+    const leverage = toChainLeverage(params.leverage);
+    const tp = toChainPrice(params.tp ?? 0);
+    const sl = toChainPrice(params.sl ?? 0);
+    const buy = params.direction === "long";
+    const orderType = ORDER_TYPE_MAP[params.orderType];
+
+    const slippage =
+      params.orderType === "market"
+        ? toChainSlippage(params.slippage ?? DEFAULT_MARKET_SLIPPAGE)
+        : 0n;
+
+    const builderFee = this.builderConfig
+      ? {
+          builder: this.builderConfig.address,
+          builderFee: Number(parseUnits(String(this.builderConfig.feePercent), 5)),
+        }
+      : { builder: zeroAddress, builderFee: 0 };
+
+    this.logger?.info(
+      `Opening ${params.direction} ${params.orderType} trade on pair ${params.pairIndex}`,
+    );
+
+    await this.ensureAllowance(collateral);
+
+    try {
+      const hash = await this.walletClient.writeContract({
+        account: this.account,
+        chain: null,
+        address: this.config.contracts.trading,
+        abi: tradingAbi,
+        functionName: "openTrade",
+        args: [
+          {
+            collateral,
+            openPrice,
+            tp,
+            sl,
+            trader: this.account.address,
+            leverage: Number(leverage),
+            pairIndex: params.pairIndex,
+            index: 0,
+            buy,
+          },
+          builderFee,
+          orderType,
+          slippage,
+        ],
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("openTrade transaction reverted");
+      }
+
+      const orderId = extractOrderId(receipt);
+      this.logger?.info(`Trade opened, orderId: ${orderId ?? "unknown"}`);
+
+      return { transactionHash: hash, receipt, orderId };
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("openTrade failed", { cause: error });
+    }
   }
 
   async ensureAllowance(amount: bigint): Promise<void> {
@@ -55,6 +147,7 @@ export class Trading {
       }
       this.logger?.debug("USDC approval confirmed");
     } catch (error) {
+      if (error instanceof OstiumError) throw error;
       throw new OstiumError("USDC approval failed", { cause: error });
     }
   }
