@@ -178,18 +178,30 @@ describe("Subgraph", () => {
   });
 
   describe("getOpenTrades", () => {
+    it("rejects invalid address", async () => {
+      await expect(subgraph.getOpenTrades("not-an-address")).rejects.toThrow(OstiumError);
+      expect(requestMock).not.toHaveBeenCalled();
+    });
+
     it("returns typed trades array", async () => {
       requestMock.mockResolvedValue({ trades: [mockTrade] });
-      const result = await subgraph.getOpenTrades("0xabc123");
+      const result = await subgraph.getOpenTrades("0xabc1230000000000000000000000000000000000");
       expect(result).toEqual([mockTrade]);
-      expect(requestMock).toHaveBeenCalledWith(expect.any(String), { trader: "0xabc123" });
+      expect(requestMock).toHaveBeenCalledWith(expect.any(String), {
+        trader: "0xabc1230000000000000000000000000000000000",
+      });
     });
   });
 
   describe("getOrders", () => {
+    it("rejects invalid address", async () => {
+      await expect(subgraph.getOrders("not-an-address")).rejects.toThrow(OstiumError);
+      expect(requestMock).not.toHaveBeenCalled();
+    });
+
     it("returns typed orders array", async () => {
       requestMock.mockResolvedValue({ limits: [mockOrder] });
-      const result = await subgraph.getOrders("0xabc123");
+      const result = await subgraph.getOrders("0xabc1230000000000000000000000000000000000");
       expect(result).toEqual([mockOrder]);
     });
   });

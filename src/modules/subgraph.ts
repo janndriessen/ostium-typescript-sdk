@@ -1,4 +1,5 @@
 import { GraphQLClient, gql } from "graphql-request";
+import { isAddress } from "viem";
 import { OstiumError } from "../errors.js";
 import type { Logger, OpenOrder, OpenTrade, Pair } from "../types.js";
 
@@ -220,6 +221,11 @@ export class Subgraph {
   }
 
   async getOpenTrades(address: string): Promise<OpenTrade[]> {
+    if (!isAddress(address)) {
+      throw new OstiumError(`Invalid address: ${address}`, {
+        suggestion: "address must be a valid Ethereum address",
+      });
+    }
     this.logger?.debug(`Fetching open trades for ${address}`);
     const data = await this.request<{ trades: OpenTrade[] }>(GET_OPEN_TRADES, {
       trader: address,
@@ -228,6 +234,11 @@ export class Subgraph {
   }
 
   async getOrders(address: string): Promise<OpenOrder[]> {
+    if (!isAddress(address)) {
+      throw new OstiumError(`Invalid address: ${address}`, {
+        suggestion: "address must be a valid Ethereum address",
+      });
+    }
     this.logger?.debug(`Fetching orders for ${address}`);
     const data = await this.request<{ limits: OpenOrder[] }>(GET_ORDERS, {
       trader: address,

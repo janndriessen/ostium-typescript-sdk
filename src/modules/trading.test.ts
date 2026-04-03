@@ -61,26 +61,36 @@ beforeEach(() => {
 });
 
 describe("Trading", () => {
-  describe("ensureAllowance", () => {
+  describe("USDC approval (via openTrade)", () => {
     it("skips approval when allowance is sufficient", async () => {
-      readContractMock.mockResolvedValue(200000000n);
+      readContractMock.mockResolvedValue(1000000000n);
+      writeContractMock.mockResolvedValue("0xtradeHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success", logs: [] });
       const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
 
-      await trading.ensureAllowance(100000000n);
+      await trading.openTrade(validParams, 107000);
 
-      expect(readContractMock).toHaveBeenCalledOnce();
-      expect(writeContractMock).not.toHaveBeenCalled();
+      // Only one writeContract call (the trade itself, not an approval)
+      expect(writeContractMock).toHaveBeenCalledOnce();
+      expect(writeContractMock).toHaveBeenCalledWith(
+        expect.objectContaining({ functionName: "openTrade" }),
+      );
     });
 
-    it("approves exact amount when allowance is insufficient", async () => {
+    it("approves exact collateral to TradingStorage when insufficient", async () => {
       readContractMock.mockResolvedValue(0n);
-      writeContractMock.mockResolvedValue("0xhash");
-      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      writeContractMock
+        .mockResolvedValueOnce("0xapprovalHash")
+        .mockResolvedValueOnce("0xtradeHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success", logs: [] });
       const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
 
-      await trading.ensureAllowance(100000000n);
+      await trading.openTrade(validParams, 107000);
 
-      expect(writeContractMock).toHaveBeenCalledWith(
+      // First call is approval, second is the trade
+      expect(writeContractMock).toHaveBeenCalledTimes(2);
+      expect(writeContractMock).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({
           functionName: "approve",
           args: [mockConfig.contracts.tradingStorage, 100000000n],
@@ -88,46 +98,12 @@ describe("Trading", () => {
       );
     });
 
-    it("approves to TradingStorage address", async () => {
-      readContractMock.mockResolvedValue(0n);
-      writeContractMock.mockResolvedValue("0xhash");
-      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
-      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
-
-      await trading.ensureAllowance(100000000n);
-
-      const callArgs = writeContractMock.mock.calls[0][0];
-      expect(callArgs.args[0]).toBe(mockConfig.contracts.tradingStorage);
-    });
-
-    it("waits for approval receipt", async () => {
-      readContractMock.mockResolvedValue(0n);
-      writeContractMock.mockResolvedValue("0xapprovalHash");
-      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
-      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
-
-      await trading.ensureAllowance(100000000n);
-
-      expect(waitForTransactionReceiptMock).toHaveBeenCalledWith({ hash: "0xapprovalHash" });
-    });
-
     it("wraps approval errors in OstiumError", async () => {
       readContractMock.mockResolvedValue(0n);
       writeContractMock.mockRejectedValue(new Error("tx reverted"));
       const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
 
-      await expect(trading.ensureAllowance(100000000n)).rejects.toThrow(OstiumError);
-      await expect(trading.ensureAllowance(100000000n)).rejects.toThrow("USDC approval failed");
-    });
-
-    it("throws on reverted approval receipt", async () => {
-      readContractMock.mockResolvedValue(0n);
-      writeContractMock.mockResolvedValue("0xhash");
-      waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted" });
-      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
-
-      await expect(trading.ensureAllowance(100000000n)).rejects.toThrow(OstiumError);
-      await expect(trading.ensureAllowance(100000000n)).rejects.toThrow("USDC approval failed");
+      await expect(trading.openTrade(validParams, 107000)).rejects.toThrow(OstiumError);
     });
   });
 

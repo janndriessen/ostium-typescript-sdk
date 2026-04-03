@@ -13,9 +13,12 @@ vi.mock("viem", async (importOriginal) => {
 });
 
 vi.mock("viem/accounts", () => ({
-  privateKeyToAccount: vi.fn(() => ({
-    address: "0x1234567890abcdef1234567890abcdef12345678",
-  })),
+  privateKeyToAccount: vi.fn((key: string) => {
+    if (!key.startsWith("0x") || key.length !== 66) {
+      throw new Error("Invalid private key");
+    }
+    return { address: "0x1234567890abcdef1234567890abcdef12345678" };
+  }),
 }));
 
 // Import after mocks are set up
@@ -52,6 +55,16 @@ describe("OstiumSDK", () => {
       privateKey: TEST_PRIVATE_KEY,
     });
     expect(sdk.trading).toBeDefined();
+  });
+
+  it("throws OstiumError for invalid privateKey", () => {
+    expect(() => new OstiumSDK({ network: "testnet", privateKey: "not-a-valid-key" })).toThrow(
+      OstiumError,
+    );
+  });
+
+  it("throws OstiumError for empty privateKey", () => {
+    expect(() => new OstiumSDK({ network: "testnet", privateKey: "" })).toThrow(OstiumError);
   });
 
   it("exposes networkConfig", () => {

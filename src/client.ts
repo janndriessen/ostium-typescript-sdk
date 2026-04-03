@@ -27,8 +27,16 @@ export class OstiumSDK {
     this.price = new Price(config.logger);
     this.subgraph = new Subgraph(this.networkConfig.graphUrl, config.logger);
 
-    if (config.privateKey) {
-      const account = privateKeyToAccount(config.privateKey as `0x${string}`);
+    if (config.privateKey !== undefined) {
+      let account: ReturnType<typeof privateKeyToAccount>;
+      try {
+        account = privateKeyToAccount(config.privateKey as `0x${string}`);
+      } catch (error) {
+        throw new OstiumError("Invalid privateKey", {
+          cause: error,
+          suggestion: "privateKey must be a 0x-prefixed 64-character hex string",
+        });
+      }
       const transport = http(config.rpcUrl);
 
       this._publicClient = createPublicClient({ chain, transport });

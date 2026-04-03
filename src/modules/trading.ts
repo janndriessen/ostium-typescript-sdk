@@ -313,7 +313,7 @@ export class Trading {
     }
   }
 
-  async ensureAllowance(amount: bigint): Promise<void> {
+  private async ensureAllowance(amount: bigint): Promise<void> {
     try {
       const allowance = await this.publicClient.readContract({
         address: this.config.contracts.usdc,
