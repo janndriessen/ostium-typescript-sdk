@@ -24,6 +24,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:integration": "INTEGRATION=true vitest run --config vitest.integration.config.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "ci": "biome ci . && tsc --noEmit && vitest run",
