@@ -1,0 +1,93 @@
+import { describe, expect, it, vi } from "vitest";
+import { OstiumError } from "./errors.js";
+
+const getChainIdMock = vi.fn();
+
+vi.mock("viem", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("viem")>();
+  return {
+    ...actual,
+    createPublicClient: vi.fn(() => ({ getChainId: getChainIdMock })),
+    createWalletClient: vi.fn(() => ({})),
+  };
+});
+
+vi.mock("viem/accounts", () => ({
+  privateKeyToAccount: vi.fn(() => ({
+    address: "0x1234567890abcdef1234567890abcdef12345678",
+  })),
+}));
+
+// Import after mocks are set up
+const { OstiumSDK } = await import("./client.js");
+
+const TEST_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+
+describe("OstiumSDK", () => {
+  it("constructs without network calls", () => {
+    const sdk = new OstiumSDK({ network: "testnet" });
+    expect(sdk).toBeDefined();
+    expect(getChainIdMock).not.toHaveBeenCalled();
+  });
+
+  it("price is always available", () => {
+    const sdk = new OstiumSDK({ network: "testnet" });
+    expect(sdk.price).toBeDefined();
+  });
+
+  it("subgraph is always available", () => {
+    const sdk = new OstiumSDK({ network: "testnet" });
+    expect(sdk.subgraph).toBeDefined();
+  });
+
+  it("trading throws in read-only mode", () => {
+    const sdk = new OstiumSDK({ network: "testnet" });
+    expect(() => sdk.trading).toThrow(OstiumError);
+    expect(() => sdk.trading).toThrow("privateKey");
+  });
+
+  it("trading is available with privateKey", () => {
+    const sdk = new OstiumSDK({
+      network: "testnet",
+      privateKey: TEST_PRIVATE_KEY,
+    });
+    expect(sdk.trading).toBeDefined();
+  });
+
+  it("exposes networkConfig", () => {
+    const sdk = new OstiumSDK({ network: "mainnet" });
+    expect(sdk.networkConfig.chainId).toBe(42161);
+
+    const testSdk = new OstiumSDK({ network: "testnet" });
+    expect(testSdk.networkConfig.chainId).toBe(421614);
+  });
+
+  describe("connect", () => {
+    it("throws in read-only mode", async () => {
+      const sdk = new OstiumSDK({ network: "testnet" });
+      await expect(sdk.connect()).rejects.toThrow(OstiumError);
+      await expect(sdk.connect()).rejects.toThrow("privateKey");
+    });
+
+    it("succeeds when chain ID matches", async () => {
+      getChainIdMock.mockResolvedValue(421614);
+      const sdk = new OstiumSDK({
+        network: "testnet",
+        privateKey: TEST_PRIVATE_KEY,
+      });
+
+      await expect(sdk.connect()).resolves.toBeUndefined();
+    });
+
+    it("throws on chain ID mismatch", async () => {
+      getChainIdMock.mockResolvedValue(1);
+      const sdk = new OstiumSDK({
+        network: "testnet",
+        privateKey: TEST_PRIVATE_KEY,
+      });
+
+      await expect(sdk.connect()).rejects.toThrow(OstiumError);
+      await expect(sdk.connect()).rejects.toThrow("Chain ID mismatch");
+    });
+  });
+});

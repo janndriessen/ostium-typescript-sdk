@@ -1,0 +1,73 @@
+import type { PublicClient } from "viem";
+import { createPublicClient, createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { arbitrum, arbitrumSepolia } from "viem/chains";
+import { mainnetConfig, testnetConfig } from "./config.js";
+import { OstiumError } from "./errors.js";
+import { Price } from "./modules/price.js";
+import { Subgraph } from "./modules/subgraph.js";
+import { Trading } from "./modules/trading.js";
+import type { NetworkConfig, OstiumSDKConfig } from "./types.js";
+
+const CHAINS = { mainnet: arbitrum, testnet: arbitrumSepolia } as const;
+const CONFIGS = { mainnet: mainnetConfig, testnet: testnetConfig } as const;
+
+export class OstiumSDK {
+  readonly price: Price;
+  readonly subgraph: Subgraph;
+  readonly networkConfig: NetworkConfig;
+
+  private readonly _trading?: Trading;
+  private readonly _publicClient?: PublicClient;
+
+  constructor(config: OstiumSDKConfig) {
+    this.networkConfig = CONFIGS[config.network];
+    const chain = CHAINS[config.network];
+
+    this.price = new Price(config.logger);
+    this.subgraph = new Subgraph(this.networkConfig.graphUrl, config.logger);
+
+    if (config.privateKey) {
+      const account = privateKeyToAccount(config.privateKey as `0x${string}`);
+      const transport = http(config.rpcUrl);
+
+      this._publicClient = createPublicClient({ chain, transport });
+
+      const walletClient = createWalletClient({ account, chain, transport });
+
+      this._trading = new Trading(
+        this._publicClient,
+        walletClient,
+        account,
+        this.networkConfig,
+        config.logger,
+        config.builder,
+      );
+    }
+  }
+
+  get trading(): Trading {
+    if (!this._trading) {
+      throw new OstiumError("Trading requires a privateKey", {
+        suggestion: "Pass a privateKey in OstiumSDKConfig to enable trading",
+      });
+    }
+    return this._trading;
+  }
+
+  async connect(): Promise<void> {
+    if (!this._publicClient) {
+      throw new OstiumError("connect() requires a privateKey", {
+        suggestion: "Pass a privateKey in OstiumSDKConfig to enable RPC connection",
+      });
+    }
+
+    const chainId = await this._publicClient.getChainId();
+    if (chainId !== this.networkConfig.chainId) {
+      throw new OstiumError(
+        `Chain ID mismatch: expected ${this.networkConfig.chainId}, got ${chainId}`,
+        { suggestion: "Check your rpcUrl matches the configured network" },
+      );
+    }
+  }
+}
