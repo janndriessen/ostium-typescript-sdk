@@ -329,4 +329,81 @@ describe("Trading", () => {
       await expect(trading.openTrade(validParams, 107000)).rejects.toThrow("openTrade failed");
     });
   });
+
+  describe("closeTrade", () => {
+    function setupSuccessfulClose() {
+      writeContractMock.mockResolvedValue("0xcloseHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success", logs: [] });
+    }
+
+    it("rejects invalid pairIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.closeTrade(-1, 0, 107000)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects invalid tradeIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.closeTrade(0, 256, 107000)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects invalid price", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.closeTrade(0, 0, 0)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects invalid closePercentage", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.closeTrade(0, 0, 107000, 0)).rejects.toThrow(OstiumError);
+      await expect(trading.closeTrade(0, 0, 107000, 101)).rejects.toThrow(OstiumError);
+    });
+
+    it("defaults closePercentage to 100", async () => {
+      setupSuccessfulClose();
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.closeTrade(0, 0, 107000);
+
+      const args = writeContractMock.mock.calls[0][0].args;
+      expect(args[2]).toBe(10000); // 100% → 10000 basis points
+    });
+
+    it("sends correct args to contract", async () => {
+      setupSuccessfulClose();
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.closeTrade(0, 1, 107000, 50);
+
+      expect(writeContractMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: "closeTradeMarket",
+          address: mockConfig.contracts.trading,
+        }),
+      );
+
+      const args = writeContractMock.mock.calls[0][0].args;
+      expect(args[0]).toBe(0); // pairIndex
+      expect(args[1]).toBe(1); // tradeIndex
+      expect(args[2]).toBe(5000); // 50% → 5000 basis points
+      expect(args[4]).toBe(200); // default 2% slippage → 200
+    });
+
+    it("returns TransactionResult", async () => {
+      setupSuccessfulClose();
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      const result = await trading.closeTrade(0, 0, 107000);
+
+      expect(result.transactionHash).toBe("0xcloseHash");
+      expect(result.receipt).toBeDefined();
+    });
+
+    it("throws on reverted receipt", async () => {
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted", logs: [] });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.closeTrade(0, 0, 107000)).rejects.toThrow(OstiumError);
+      await expect(trading.closeTrade(0, 0, 107000)).rejects.toThrow("closeTrade failed");
+    });
+  });
 });

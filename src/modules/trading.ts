@@ -11,11 +11,15 @@ import type {
 } from "../types.js";
 import {
   extractOrderId,
+  toChainClosePercentage,
   toChainCollateral,
   toChainLeverage,
   toChainPrice,
   toChainSlippage,
+  validateClosePercentage,
+  validatePairIndex,
   validatePrice,
+  validateTradeIndex,
   validateTradeParams,
 } from "../utils.js";
 
@@ -113,6 +117,48 @@ export class Trading {
     } catch (error) {
       if (error instanceof OstiumError) throw error;
       throw new OstiumError("openTrade failed", { cause: error });
+    }
+  }
+
+  async closeTrade(
+    pairIndex: number,
+    tradeIndex: number,
+    marketPrice: number,
+    closePercentage = 100,
+  ): Promise<TransactionResult> {
+    validatePairIndex(pairIndex);
+    validateTradeIndex(tradeIndex);
+    validatePrice(marketPrice);
+    validateClosePercentage(closePercentage);
+
+    const chainPrice = toChainPrice(marketPrice);
+    const chainClosePercentage = toChainClosePercentage(closePercentage);
+    const slippage = toChainSlippage(DEFAULT_MARKET_SLIPPAGE);
+
+    this.logger?.info(`Closing ${closePercentage}% of trade ${tradeIndex} on pair ${pairIndex}`);
+
+    try {
+      const hash = await this.walletClient.writeContract({
+        account: this.account,
+        chain: null,
+        address: this.config.contracts.trading,
+        abi: tradingAbi,
+        functionName: "closeTradeMarket",
+        args: [pairIndex, tradeIndex, Number(chainClosePercentage), chainPrice, Number(slippage)],
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("closeTrade transaction reverted");
+      }
+
+      const orderId = extractOrderId(receipt);
+      this.logger?.info(`Trade closed, orderId: ${orderId ?? "unknown"}`);
+
+      return { transactionHash: hash, receipt, orderId };
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("closeTrade failed", { cause: error });
     }
   }
 
