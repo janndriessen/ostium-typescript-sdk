@@ -25,6 +25,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:integration": "INTEGRATION=true vitest run --config vitest.integration.config.ts",
+    "test:smoke": "SMOKE=true vitest run --config vitest.smoke.config.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "ci": "biome ci . && tsc --noEmit && vitest run",
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
+    "@types/node": "25.5.2",
     "@vitest/coverage-v8": "4.1.2",
     "tsup": "8.5.1",
     "typescript": "6.0.2",
