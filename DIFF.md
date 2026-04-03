@@ -1,0 +1,114 @@
+# TypeScript SDK vs Python SDK — Comparison
+
+This TypeScript SDK is a rewrite of the [ostium-python-sdk](https://github.com/0xOstium/ostium-python-sdk), focused on the core trading flow. The Python SDK served as the primary reference for contract interactions, subgraph queries, and protocol behavior.
+
+---
+
+## Core Trading Flow
+
+All core trading operations are ported from the Python SDK:
+
+| Python SDK | TypeScript SDK | Notes |
+|---|---|---|
+| `perform_trade(trade_params, at_price)` | `openTrade(params, atPrice)` | Same flow: approve, build struct, send, extract orderId |
+| `close_trade(pair_id, trade_index, market_price, close_percentage)` | `closeTrade(pairIndex, tradeIndex, marketPrice, closePercentage?)` | Same params, same close percentage scaling |
+| `update_tp(pair_id, trade_index, tp_price)` | `updateTp(pairIndex, tradeIndex, newTp)` | Identical |
+| `update_sl(pairID, index, sl)` | `updateSl(pairIndex, tradeIndex, newSl)` | Identical |
+| `cancel_limit_order(pair_id, trade_index)` | `cancelLimitOrder(pairIndex, orderIndex)` | Identical |
+| `update_limit_order(pair_id, index, pvt_key, price?, tp?, sl?)` | `updateLimitOrder(pairIndex, orderIndex, price?, tp?, sl?)` | Both read existing order, merge unchanged fields |
+| `get_pairs()` | `getPairs()` | Identical query |
+| `get_pair_details(pair_id)` | `getPairDetails(pairIndex)` | Identical query |
+| `get_open_trades(address)` | `getOpenTrades(address)` | Identical query |
+| `get_orders(trader)` | `getOrders(address)` | Identical query |
+| `get_latest_prices()` / `get_price()` | `getLatestPrices()` / `getPrice(from, to)` | Same endpoint, same response shape |
+| Network config (mainnet/testnet) | `mainnetConfig` / `testnetConfig` | Same addresses, same chain IDs |
+| BuilderFee struct | `BuilderFee` interface | Same struct |
+| PriceRequested event parsing | `extractOrderId(receipt)` | Same approach (keccak topic match) |
+
+---
+
+## Not Yet Ported (v1 scope)
+
+These Python SDK features are not included in v1. They can be added in future versions as needed.
+
+### Delegation (~150 LOC)
+
+Every Python write method supports a `use_delegation` / `trader_address` branch for delegated trading. This adds branching to every method and is a more advanced use case.
+
+### Timeout Recovery (~80 LOC)
+
+- `close_market_timeout(order_id, retry)` — retry or cancel timed-out close orders
+- `open_market_timeout(order_id)` — cancel timed-out open orders
+
+Useful for operational recovery in production bots.
+
+### Collateral Management (~60 LOC)
+
+- `add_collateral(pairID, index, collateral)` — add collateral to an open position
+- `remove_collateral(pair_id, trade_index, remove_amount)` — remove collateral from an open position
+
+### Withdraw (~30 LOC)
+
+- `withdraw(amount, receiving_address)` — USDC transfer
+
+### Order Tracking (~80 LOC)
+
+- `track_order_and_trade(subgraph_client, order_id)` — polls subgraph until order fills or cancels
+
+### Formulae / PnL (~500+ LOC + Rust bindings)
+
+- `formulae.py`, `formulae_wrapper.py`, `scscript/` — compiled Rust modules for funding rate math
+- `get_open_trade_metrics()` — computes funding fee, rollover fee, unrealized PnL
+- `get_funding_rate_for_pair_id()` — funding rate via Hill function
+- Various rate calculation helpers
+
+The most complex module in the Python SDK, with compiled Rust dependencies for precision math.
+
+### Convenience Wrappers
+
+- `get_formatted_pairs_details()` (~60 LOC) — formatted pair listing with live price enrichment
+- `get_pair_max_leverage()` / `get_pair_overnight_max_leverage()` (~30 LOC) — wrappers over subgraph data
+
+### Additional Subgraph Queries
+
+- `get_recent_history(trader, last_n_orders)` — order history
+- `get_order_by_id(order_id)` / `get_trade_by_id(trade_id)` — single-entity lookups
+- `get_liq_margin_threshold_p()` — liquidation threshold (used by PnL calcs)
+
+### Other Modules
+
+- **Balance** — contract read for account balance
+- **Faucet** — testnet USDC faucet
+
+---
+
+## Design Differences
+
+Different language, different ecosystem — some choices were adapted for TypeScript idioms and tooling.
+
+| Area | Python SDK | TypeScript SDK | Rationale |
+|---|---|---|---|
+| USDC approval | Approves a generous fixed amount | Exact-amount approval per trade | Minimizes token exposure; extra tx is cheap on Arbitrum |
+| Constructor | Connects to RPC + validates chain ID on init | No side effects; lazy `connect()` | Enables read-only mode (subgraph + price without a wallet) |
+| Error handling | Custom error code map (`fromErrorCodeToMessage`) | viem's built-in ABI error decoding | Leverages viem's native capabilities |
+| Typing | Dynamic dicts for params and responses | Full TypeScript interfaces | Main value-add of a TS rewrite |
+| Direction | `buy: true/false` | `direction: 'long' \| 'short'` | More explicit at the API surface |
+| Order type | Numeric enum `0/1/2` | `'market' \| 'limit' \| 'stop'` | More explicit at the API surface |
+| Pair identifier | Various names (`asset_type`, `pair_id`, `pairID`, `pairIndex`) | Always `pairIndex: number` | Consistent naming |
+| GraphQL client | `gql` with `AIOHTTPTransport`, connection management | `graphql-request` (stateless) | Simpler — each request is independent |
+| SSL | Custom SSL context handling | Native `fetch` defaults | Node.js handles SSL out of the box |
+| Precision | Python `Decimal` + `PRECISION_*` constants | `bigint` + viem `parseUnits`/`formatUnits` | Idiomatic for the JS/TS ecosystem |
+| Logging | `print()` with `verbose` flag | `Logger` interface (injectable) | Composable with any logging framework |
+
+---
+
+## By the Numbers
+
+| Metric | Value |
+|---|---|
+| Python SDK public methods | ~35 across all modules |
+| TypeScript SDK public methods | ~14 (6 trading + 4 subgraph + 2 price + client + connect) |
+| Core trading flow coverage | **100%** |
+| Python API surface ported | **~40%** by method count |
+| Features deferred | ~1,100+ lines equivalent |
+| New in TypeScript | Strong typing, input validation, read-only mode, injectable logger |
