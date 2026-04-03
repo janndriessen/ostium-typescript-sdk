@@ -384,17 +384,38 @@ describe("Trading", () => {
       expect(args[0]).toBe(0); // pairIndex
       expect(args[1]).toBe(1); // tradeIndex
       expect(args[2]).toBe(5000); // 50% → 5000 basis points
+      expect(args[3]).toBe(107000000000000000000000n); // price scaled to 18 decimals
       expect(args[4]).toBe(200); // default 2% slippage → 200
     });
 
-    it("returns TransactionResult", async () => {
+    it("allows custom slippage override", async () => {
       setupSuccessfulClose();
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.closeTrade(0, 0, 107000, 100, 5);
+
+      const args = writeContractMock.mock.calls[0][0].args;
+      expect(args[4]).toBe(500); // 5% → 500
+    });
+
+    it("returns TransactionResult with orderId", async () => {
+      const PRICE_REQUESTED_TOPIC =
+        "0x8195bed39a3fd3cf674a481e5c9ebcec05361cfca110f800bedda374c24bdeea";
+      writeContractMock.mockResolvedValue("0xcloseHash");
+      waitForTransactionReceiptMock.mockResolvedValue({
+        status: "success",
+        logs: [
+          {
+            topics: [PRICE_REQUESTED_TOPIC, `0x${7n.toString(16).padStart(64, "0")}`],
+          },
+        ],
+      });
       const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
 
       const result = await trading.closeTrade(0, 0, 107000);
 
       expect(result.transactionHash).toBe("0xcloseHash");
-      expect(result.receipt).toBeDefined();
+      expect(result.orderId).toBe("7");
     });
 
     it("throws on reverted receipt", async () => {
@@ -404,6 +425,132 @@ describe("Trading", () => {
 
       await expect(trading.closeTrade(0, 0, 107000)).rejects.toThrow(OstiumError);
       await expect(trading.closeTrade(0, 0, 107000)).rejects.toThrow("closeTrade failed");
+    });
+  });
+
+  describe("updateTp", () => {
+    it("rejects invalid pairIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.updateTp(-1, 0, 110000)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects invalid tradeIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.updateTp(0, 256, 110000)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects negative tp price", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.updateTp(0, 0, -1)).rejects.toThrow(OstiumError);
+      expect(writeContractMock).not.toHaveBeenCalled();
+    });
+
+    it("allows zero tp (removes take profit)", async () => {
+      writeContractMock.mockResolvedValue("0xtpHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.updateTp(0, 0, 0);
+
+      const args = writeContractMock.mock.calls[0][0].args;
+      expect(args[2]).toBe(0n);
+    });
+
+    it("sends correct args to contract", async () => {
+      writeContractMock.mockResolvedValue("0xtpHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.updateTp(0, 1, 110000);
+
+      expect(writeContractMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: "updateTp",
+          args: [0, 1, 110000000000000000000000n],
+        }),
+      );
+    });
+
+    it("returns TransactionResult without orderId", async () => {
+      writeContractMock.mockResolvedValue("0xtpHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      const result = await trading.updateTp(0, 0, 110000);
+
+      expect(result.transactionHash).toBe("0xtpHash");
+      expect(result.orderId).toBeUndefined();
+    });
+
+    it("throws on reverted receipt", async () => {
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.updateTp(0, 0, 110000)).rejects.toThrow(OstiumError);
+    });
+  });
+
+  describe("updateSl", () => {
+    it("rejects invalid pairIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.updateSl(-1, 0, 90000)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects invalid tradeIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.updateSl(0, 256, 90000)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects negative sl price", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.updateSl(0, 0, -1)).rejects.toThrow(OstiumError);
+      expect(writeContractMock).not.toHaveBeenCalled();
+    });
+
+    it("allows zero sl (removes stop loss)", async () => {
+      writeContractMock.mockResolvedValue("0xslHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.updateSl(0, 0, 0);
+
+      const args = writeContractMock.mock.calls[0][0].args;
+      expect(args[2]).toBe(0n);
+    });
+
+    it("sends correct args to contract", async () => {
+      writeContractMock.mockResolvedValue("0xslHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.updateSl(0, 1, 90000);
+
+      expect(writeContractMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: "updateSl",
+          args: [0, 1, 90000000000000000000000n],
+        }),
+      );
+    });
+
+    it("returns TransactionResult without orderId", async () => {
+      writeContractMock.mockResolvedValue("0xslHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      const result = await trading.updateSl(0, 0, 90000);
+
+      expect(result.transactionHash).toBe("0xslHash");
+      expect(result.orderId).toBeUndefined();
+    });
+
+    it("throws on reverted receipt", async () => {
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.updateSl(0, 0, 90000)).rejects.toThrow(OstiumError);
     });
   });
 });

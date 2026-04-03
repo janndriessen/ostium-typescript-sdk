@@ -17,6 +17,7 @@ import {
   toChainPrice,
   toChainSlippage,
   validateClosePercentage,
+  validateNonNegativePrice,
   validatePairIndex,
   validatePrice,
   validateTradeIndex,
@@ -125,6 +126,7 @@ export class Trading {
     tradeIndex: number,
     marketPrice: number,
     closePercentage = 100,
+    slippage = DEFAULT_MARKET_SLIPPAGE,
   ): Promise<TransactionResult> {
     validatePairIndex(pairIndex);
     validateTradeIndex(tradeIndex);
@@ -133,7 +135,7 @@ export class Trading {
 
     const chainPrice = toChainPrice(marketPrice);
     const chainClosePercentage = toChainClosePercentage(closePercentage);
-    const slippage = toChainSlippage(DEFAULT_MARKET_SLIPPAGE);
+    const chainSlippage = toChainSlippage(slippage);
 
     this.logger?.info(`Closing ${closePercentage}% of trade ${tradeIndex} on pair ${pairIndex}`);
 
@@ -144,7 +146,13 @@ export class Trading {
         address: this.config.contracts.trading,
         abi: tradingAbi,
         functionName: "closeTradeMarket",
-        args: [pairIndex, tradeIndex, Number(chainClosePercentage), chainPrice, Number(slippage)],
+        args: [
+          pairIndex,
+          tradeIndex,
+          Number(chainClosePercentage),
+          chainPrice,
+          Number(chainSlippage),
+        ],
       });
 
       const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
@@ -159,6 +167,66 @@ export class Trading {
     } catch (error) {
       if (error instanceof OstiumError) throw error;
       throw new OstiumError("closeTrade failed", { cause: error });
+    }
+  }
+
+  async updateTp(pairIndex: number, tradeIndex: number, newTp: number): Promise<TransactionResult> {
+    validatePairIndex(pairIndex);
+    validateTradeIndex(tradeIndex);
+    validateNonNegativePrice(newTp, "tp");
+
+    const chainTp = toChainPrice(newTp);
+    this.logger?.info(`Updating TP to ${newTp} for trade ${tradeIndex} on pair ${pairIndex}`);
+
+    try {
+      const hash = await this.walletClient.writeContract({
+        account: this.account,
+        chain: null,
+        address: this.config.contracts.trading,
+        abi: tradingAbi,
+        functionName: "updateTp",
+        args: [pairIndex, tradeIndex, chainTp],
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("updateTp transaction reverted");
+      }
+
+      return { transactionHash: hash, receipt };
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("updateTp failed", { cause: error });
+    }
+  }
+
+  async updateSl(pairIndex: number, tradeIndex: number, newSl: number): Promise<TransactionResult> {
+    validatePairIndex(pairIndex);
+    validateTradeIndex(tradeIndex);
+    validateNonNegativePrice(newSl, "sl");
+
+    const chainSl = toChainPrice(newSl);
+    this.logger?.info(`Updating SL to ${newSl} for trade ${tradeIndex} on pair ${pairIndex}`);
+
+    try {
+      const hash = await this.walletClient.writeContract({
+        account: this.account,
+        chain: null,
+        address: this.config.contracts.trading,
+        abi: tradingAbi,
+        functionName: "updateSl",
+        args: [pairIndex, tradeIndex, chainSl],
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("updateSl transaction reverted");
+      }
+
+      return { transactionHash: hash, receipt };
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("updateSl failed", { cause: error });
     }
   }
 

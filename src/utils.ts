@@ -64,6 +64,10 @@ export function validatePrice(price: number): void {
   assertPositive(price, "price");
 }
 
+export function validateNonNegativePrice(price: number, name: string): void {
+  assertNonNegative(price, name);
+}
+
 const VALID_DIRECTIONS = new Set(["long", "short"]);
 const VALID_ORDER_TYPES = new Set(["market", "limit", "stop"]);
 
