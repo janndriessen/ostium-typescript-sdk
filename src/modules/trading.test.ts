@@ -553,4 +553,151 @@ describe("Trading", () => {
       await expect(trading.updateSl(0, 0, 90000)).rejects.toThrow(OstiumError);
     });
   });
+
+  describe("cancelLimitOrder", () => {
+    it("rejects invalid pairIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.cancelLimitOrder(-1, 0)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects invalid orderIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.cancelLimitOrder(0, 256)).rejects.toThrow(OstiumError);
+    });
+
+    it("sends correct args to contract", async () => {
+      writeContractMock.mockResolvedValue("0xcancelHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.cancelLimitOrder(0, 1);
+
+      expect(writeContractMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: "cancelOpenLimitOrder",
+          args: [0, 1],
+        }),
+      );
+    });
+
+    it("returns TransactionResult", async () => {
+      writeContractMock.mockResolvedValue("0xcancelHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      const result = await trading.cancelLimitOrder(0, 0);
+      expect(result.transactionHash).toBe("0xcancelHash");
+    });
+
+    it("throws on reverted receipt", async () => {
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.cancelLimitOrder(0, 0)).rejects.toThrow(OstiumError);
+    });
+  });
+
+  describe("updateLimitOrder", () => {
+    const mockCurrentOrder = {
+      collateral: 100000000n,
+      targetPrice: 107000000000000000000000n,
+      tp: 110000000000000000000000n,
+      sl: 90000000000000000000000n,
+      trader: "0x1234567890abcdef1234567890abcdef12345678",
+      leverage: 1000,
+      createdAt: 1748460056,
+      lastUpdated: 1748460056,
+      pairIndex: 0,
+      orderType: 1,
+      index: 0,
+      buy: true,
+    };
+
+    it("rejects invalid pairIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.updateLimitOrder(-1, 0, 108000)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects invalid orderIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.updateLimitOrder(0, 256, 108000)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects invalid price", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.updateLimitOrder(0, 0, -1)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects when no fields to update", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.updateLimitOrder(0, 0)).rejects.toThrow(OstiumError);
+      await expect(trading.updateLimitOrder(0, 0)).rejects.toThrow("at least one of");
+      expect(readContractMock).not.toHaveBeenCalled();
+    });
+
+    it("wraps storage read failures in OstiumError", async () => {
+      readContractMock.mockRejectedValue(new Error("RPC unavailable"));
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.updateLimitOrder(0, 0, 108000)).rejects.toThrow(OstiumError);
+      await expect(trading.updateLimitOrder(0, 0, 108000)).rejects.toThrow(
+        "updateLimitOrder failed",
+      );
+    });
+
+    it("reads current order and updates only provided fields", async () => {
+      readContractMock.mockResolvedValue(mockCurrentOrder);
+      writeContractMock.mockResolvedValue("0xupdateHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.updateLimitOrder(0, 0, 108000);
+
+      // Should read current order first
+      expect(readContractMock).toHaveBeenCalledWith(
+        expect.objectContaining({ functionName: "getOpenLimitOrder" }),
+      );
+
+      const args = writeContractMock.mock.calls[0][0].args;
+      expect(args[0]).toBe(0); // pairIndex
+      expect(args[1]).toBe(0); // orderIndex
+      expect(args[2]).toBe(108000000000000000000000n); // new price
+      expect(args[3]).toBe(mockCurrentOrder.tp); // kept from current
+      expect(args[4]).toBe(mockCurrentOrder.sl); // kept from current
+    });
+
+    it("updates all fields when all provided", async () => {
+      readContractMock.mockResolvedValue(mockCurrentOrder);
+      writeContractMock.mockResolvedValue("0xupdateHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.updateLimitOrder(0, 0, 108000, 115000, 95000);
+
+      const args = writeContractMock.mock.calls[0][0].args;
+      expect(args[2]).toBe(108000000000000000000000n);
+      expect(args[3]).toBe(115000000000000000000000n);
+      expect(args[4]).toBe(95000000000000000000000n);
+    });
+
+    it("returns TransactionResult", async () => {
+      readContractMock.mockResolvedValue(mockCurrentOrder);
+      writeContractMock.mockResolvedValue("0xupdateHash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "success" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      const result = await trading.updateLimitOrder(0, 0, 108000);
+      expect(result.transactionHash).toBe("0xupdateHash");
+    });
+
+    it("throws on reverted receipt", async () => {
+      readContractMock.mockResolvedValue(mockCurrentOrder);
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.updateLimitOrder(0, 0, 108000)).rejects.toThrow(OstiumError);
+    });
+  });
 });

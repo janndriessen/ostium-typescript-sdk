@@ -1,5 +1,6 @@
 import { type Account, type PublicClient, parseUnits, type WalletClient, zeroAddress } from "viem";
 import { tradingAbi } from "../abi/trading.js";
+import { tradingStorageAbi } from "../abi/tradingStorage.js";
 import { usdcAbi } from "../abi/usdc.js";
 import { OstiumError } from "../errors.js";
 import type {
@@ -18,6 +19,7 @@ import {
   toChainSlippage,
   validateClosePercentage,
   validateNonNegativePrice,
+  validateOrderIndex,
   validatePairIndex,
   validatePrice,
   validateTradeIndex,
@@ -227,6 +229,87 @@ export class Trading {
     } catch (error) {
       if (error instanceof OstiumError) throw error;
       throw new OstiumError("updateSl failed", { cause: error });
+    }
+  }
+
+  async cancelLimitOrder(pairIndex: number, orderIndex: number): Promise<TransactionResult> {
+    validatePairIndex(pairIndex);
+    validateOrderIndex(orderIndex);
+
+    this.logger?.info(`Cancelling limit order ${orderIndex} on pair ${pairIndex}`);
+
+    try {
+      const hash = await this.walletClient.writeContract({
+        account: this.account,
+        chain: null,
+        address: this.config.contracts.trading,
+        abi: tradingAbi,
+        functionName: "cancelOpenLimitOrder",
+        args: [pairIndex, orderIndex],
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("cancelLimitOrder transaction reverted");
+      }
+
+      return { transactionHash: hash, receipt };
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("cancelLimitOrder failed", { cause: error });
+    }
+  }
+
+  async updateLimitOrder(
+    pairIndex: number,
+    orderIndex: number,
+    price?: number,
+    tp?: number,
+    sl?: number,
+  ): Promise<TransactionResult> {
+    validatePairIndex(pairIndex);
+    validateOrderIndex(orderIndex);
+    if (price === undefined && tp === undefined && sl === undefined) {
+      throw new OstiumError("updateLimitOrder requires at least one of: price, tp, sl");
+    }
+    if (price !== undefined) validatePrice(price);
+    if (tp !== undefined) validateNonNegativePrice(tp, "tp");
+    if (sl !== undefined) validateNonNegativePrice(sl, "sl");
+
+    try {
+      this.logger?.debug(`Reading current limit order ${orderIndex} on pair ${pairIndex}`);
+
+      const currentOrder = await this.publicClient.readContract({
+        address: this.config.contracts.tradingStorage,
+        abi: tradingStorageAbi,
+        functionName: "getOpenLimitOrder",
+        args: [this.account.address, pairIndex, orderIndex],
+      });
+
+      const chainPrice = price !== undefined ? toChainPrice(price) : currentOrder.targetPrice;
+      const chainTp = tp !== undefined ? toChainPrice(tp) : currentOrder.tp;
+      const chainSl = sl !== undefined ? toChainPrice(sl) : currentOrder.sl;
+
+      this.logger?.info(`Updating limit order ${orderIndex} on pair ${pairIndex}`);
+
+      const hash = await this.walletClient.writeContract({
+        account: this.account,
+        chain: null,
+        address: this.config.contracts.trading,
+        abi: tradingAbi,
+        functionName: "updateOpenLimitOrder",
+        args: [pairIndex, orderIndex, chainPrice, chainTp, chainSl],
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("updateLimitOrder transaction reverted");
+      }
+
+      return { transactionHash: hash, receipt };
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("updateLimitOrder failed", { cause: error });
     }
   }
 
