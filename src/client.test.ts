@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { OstiumError } from "./errors.js";
+import type { Logger } from "./types.js";
 
 const getChainIdMock = vi.fn();
 
@@ -20,6 +21,15 @@ vi.mock("viem/accounts", () => ({
     return { address: "0x1234567890abcdef1234567890abcdef12345678" };
   }),
 }));
+
+const PriceSpy = vi.fn();
+vi.mock("./modules/price.js", () => ({ Price: PriceSpy }));
+
+const SubgraphSpy = vi.fn();
+vi.mock("./modules/subgraph.js", () => ({ Subgraph: SubgraphSpy }));
+
+const TradingSpy = vi.fn();
+vi.mock("./modules/trading.js", () => ({ Trading: TradingSpy }));
 
 // Import after mocks are set up
 const { OstiumSDK } = await import("./client.js");
@@ -102,5 +112,43 @@ describe("OstiumSDK", () => {
       await expect(sdk.connect()).rejects.toThrow(OstiumError);
       await expect(sdk.connect()).rejects.toThrow("Chain ID mismatch");
     });
+  });
+
+  it("passes logger to all sub-modules", () => {
+    const logger: Logger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+    new OstiumSDK({ network: "testnet", privateKey: TEST_PRIVATE_KEY, logger });
+
+    expect(PriceSpy).toHaveBeenCalledWith(logger);
+    expect(SubgraphSpy).toHaveBeenCalledWith(expect.any(String), logger);
+    expect(TradingSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      logger,
+      undefined,
+    );
+  });
+
+  it("passes builder config to trading module", () => {
+    const builder = {
+      address: "0xBuilderAddress0000000000000000000000000000" as const,
+      feePercent: 0.1,
+    };
+    new OstiumSDK({ network: "testnet", privateKey: TEST_PRIVATE_KEY, builder });
+
+    expect(TradingSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      undefined,
+      builder,
+    );
   });
 });
