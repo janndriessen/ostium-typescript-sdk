@@ -317,6 +317,7 @@ describe("Trading", () => {
 
   describe("closeTrade", () => {
     function setupSuccessfulClose() {
+      readContractMock.mockResolvedValue(1000000000n); // sufficient allowance
       writeContractMock.mockResolvedValue("0xcloseHash");
       waitForTransactionReceiptMock.mockResolvedValue({ status: "success", logs: [] });
     }
@@ -386,6 +387,7 @@ describe("Trading", () => {
     it("returns TransactionResult with orderId", async () => {
       const PRICE_REQUESTED_TOPIC =
         "0x8195bed39a3fd3cf674a481e5c9ebcec05361cfca110f800bedda374c24bdeea";
+      readContractMock.mockResolvedValue(1000000000n);
       writeContractMock.mockResolvedValue("0xcloseHash");
       waitForTransactionReceiptMock.mockResolvedValue({
         status: "success",
@@ -404,6 +406,7 @@ describe("Trading", () => {
     });
 
     it("throws on reverted receipt", async () => {
+      readContractMock.mockResolvedValue(1000000000n);
       writeContractMock.mockResolvedValue("0xhash");
       waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted", logs: [] });
       const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);

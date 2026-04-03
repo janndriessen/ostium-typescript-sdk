@@ -139,6 +139,9 @@ export class Trading {
     const chainClosePercentage = toChainClosePercentage(closePercentage);
     const chainSlippage = toChainSlippage(slippage);
 
+    // Closing may require allowance for fee settlement
+    await this.ensureAllowance(toChainCollateral(1));
+
     this.logger?.info(`Closing ${closePercentage}% of trade ${tradeIndex} on pair ${pairIndex}`);
 
     try {
