@@ -112,6 +112,17 @@ describe("OstiumSDK", () => {
       await expect(sdk.connect()).rejects.toThrow(OstiumError);
       await expect(sdk.connect()).rejects.toThrow("Chain ID mismatch");
     });
+
+    it("wraps RPC errors in OstiumError when getChainId fails", async () => {
+      getChainIdMock.mockRejectedValue(new Error("RPC unreachable"));
+      const sdk = new OstiumSDK({
+        network: "testnet",
+        privateKey: TEST_PRIVATE_KEY,
+      });
+
+      await expect(sdk.connect()).rejects.toThrow(OstiumError);
+      await expect(sdk.connect()).rejects.toThrow("Failed to connect to RPC");
+    });
   });
 
   it("passes logger to all sub-modules", () => {

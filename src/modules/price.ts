@@ -13,12 +13,17 @@ export class Price {
   async getLatestPrices(): Promise<PriceData[]> {
     this.logger?.debug("Fetching latest prices");
 
-    const response = await fetch(PRICES_URL);
-    if (!response.ok) {
-      throw new OstiumError(`Failed to fetch prices: ${response.status} ${response.statusText}`);
-    }
+    try {
+      const response = await fetch(PRICES_URL);
+      if (!response.ok) {
+        throw new OstiumError(`Failed to fetch prices: ${response.status} ${response.statusText}`);
+      }
 
-    return response.json() as Promise<PriceData[]>;
+      return response.json() as Promise<PriceData[]>;
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("Failed to fetch prices", { cause: error });
+    }
   }
 
   async getPrice(from: string, to: string): Promise<PriceData> {

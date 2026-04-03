@@ -28,6 +28,14 @@ describe("scaling helpers", () => {
       expect(toChainPrice(0)).toBe(0n);
     });
 
+    it("handles very large price", () => {
+      expect(toChainPrice(999999)).toBe(999999000000000000000000n);
+    });
+
+    it("handles very small price", () => {
+      expect(toChainPrice(0.000001)).toBe(1000000000000n);
+    });
+
     it("round-trips correctly", () => {
       const price = 3200.55;
       expect(fromChainPrice(toChainPrice(price))).toBe("3200.55");
@@ -45,6 +53,14 @@ describe("scaling helpers", () => {
 
     it("handles fractional USDC", () => {
       expect(toChainCollateral(99.5)).toBe(99500000n);
+    });
+
+    it("handles very small collateral", () => {
+      expect(toChainCollateral(0.01)).toBe(10000n);
+    });
+
+    it("handles large collateral", () => {
+      expect(toChainCollateral(1000000)).toBe(1000000000000n);
     });
 
     it("round-trips correctly", () => {
@@ -236,5 +252,28 @@ describe("extractOrderId", () => {
   it("returns undefined for empty logs", () => {
     const receipt = mockReceipt([]);
     expect(extractOrderId(receipt)).toBeUndefined();
+  });
+
+  it("returns undefined when matching topic has no indexed orderId", () => {
+    const receipt = mockReceipt([{ topics: [PRICE_REQUESTED_TOPIC] as [`0x${string}`] }]);
+    expect(extractOrderId(receipt)).toBeUndefined();
+  });
+
+  it("extracts from first matching log when multiple match", () => {
+    const receipt = mockReceipt([
+      {
+        topics: [PRICE_REQUESTED_TOPIC, `0x${10n.toString(16).padStart(64, "0")}`] as [
+          `0x${string}`,
+          ...`0x${string}`[],
+        ],
+      },
+      {
+        topics: [PRICE_REQUESTED_TOPIC, `0x${20n.toString(16).padStart(64, "0")}`] as [
+          `0x${string}`,
+          ...`0x${string}`[],
+        ],
+      },
+    ]);
+    expect(extractOrderId(receipt)).toBe("10");
   });
 });

@@ -70,12 +70,20 @@ export class OstiumSDK {
       });
     }
 
-    const chainId = await this._publicClient.getChainId();
-    if (chainId !== this.networkConfig.chainId) {
-      throw new OstiumError(
-        `Chain ID mismatch: expected ${this.networkConfig.chainId}, got ${chainId}`,
-        { suggestion: "Check your rpcUrl matches the configured network" },
-      );
+    try {
+      const chainId = await this._publicClient.getChainId();
+      if (chainId !== this.networkConfig.chainId) {
+        throw new OstiumError(
+          `Chain ID mismatch: expected ${this.networkConfig.chainId}, got ${chainId}`,
+          { suggestion: "Check your rpcUrl matches the configured network" },
+        );
+      }
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("Failed to connect to RPC", {
+        cause: error,
+        suggestion: "Check your rpcUrl is reachable",
+      });
     }
   }
 }

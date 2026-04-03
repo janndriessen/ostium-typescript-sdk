@@ -53,6 +53,13 @@ describe("Price", () => {
       await expect(price.getLatestPrices()).rejects.toThrow(OstiumError);
       await expect(price.getLatestPrices()).rejects.toThrow("503");
     });
+
+    it("wraps network errors in OstiumError when fetch throws", async () => {
+      fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+
+      await expect(price.getLatestPrices()).rejects.toThrow(OstiumError);
+      await expect(price.getLatestPrices()).rejects.toThrow("Failed to fetch prices");
+    });
   });
 
   describe("getPrice", () => {
