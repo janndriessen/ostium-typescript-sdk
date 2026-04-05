@@ -84,7 +84,7 @@ Different language, different ecosystem — some choices were adapted for TypeSc
 | Area | Python SDK | TypeScript SDK | Rationale |
 |---|---|---|---|
 | USDC approval | Approves a generous fixed amount | Exact-amount approval per trade | Minimizes token exposure; extra tx is cheap on Arbitrum |
-| Constructor | Connects to RPC + validates chain ID on init | No side effects; lazy `connect()` | Enables read-only mode (subgraph + price without a wallet) |
+| Constructor | Connects to RPC + validates chain ID on init | No side effects; lazy `connect()` | Enables full read-only mode (subgraph, price, and RPC/contract reads without a wallet) |
 | Error handling | Custom error code map (`fromErrorCodeToMessage`) | viem's built-in ABI error decoding | Leverages viem's native capabilities |
 | Typing | Dynamic dicts for params and responses | Full TypeScript interfaces | Main value-add of a TS rewrite |
 | Direction | `buy: true/false` | `direction: 'long' \| 'short'` | More explicit at the API surface |

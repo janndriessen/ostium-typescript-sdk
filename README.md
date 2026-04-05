@@ -50,11 +50,12 @@ await sdk.trading.closeTrade(0, tradeIndex, price.mid);
 
 ## Read-Only Mode
 
-Omit `privateKey` to use the SDK without a wallet — price fetching and subgraph queries work without one.
+Omit `privateKey` to use the SDK without a wallet. Price fetching, subgraph queries, and any read-only RPC calls (including `connect()` for chain-ID validation) work without one. Pass an `rpcUrl` to point at your own node, or omit it to use viem's default for the selected chain.
 
 ```typescript
-const sdk = new OstiumSDK({ network: "mainnet" });
+const sdk = new OstiumSDK({ network: "mainnet", rpcUrl: process.env.RPC_URL });
 
+await sdk.connect(); // optional: validates RPC reachability + chain ID
 const prices = await sdk.price.getLatestPrices();
 const trades = await sdk.subgraph.getOpenTrades("0x...");
 ```

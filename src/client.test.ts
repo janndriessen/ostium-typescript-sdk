@@ -86,10 +86,12 @@ describe("OstiumSDK", () => {
   });
 
   describe("connect", () => {
-    it("throws in read-only mode", async () => {
+    it("works in read-only mode (no privateKey required)", async () => {
+      getChainIdMock.mockResolvedValue(421614);
       const sdk = new OstiumSDK({ network: "testnet" });
-      await expect(sdk.connect()).rejects.toThrow(OstiumError);
-      await expect(sdk.connect()).rejects.toThrow("privateKey");
+
+      await expect(sdk.connect()).resolves.toBeUndefined();
+      expect(getChainIdMock).toHaveBeenCalled();
     });
 
     it("succeeds when chain ID matches", async () => {
