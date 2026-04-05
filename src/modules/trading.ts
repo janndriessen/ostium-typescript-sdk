@@ -362,7 +362,7 @@ export class Trading {
    *
    * Use this when a `closeTrade` market order emitted a PriceRequested event
    * but the oracle never fulfilled it. Unlike the open variant, the position
-   * is already on-chain, so both recovery paths are meaningful:
+   * is already onchain, so both recovery paths are meaningful:
    *
    * - `retry=true`  — re-requests a fresh oracle price; the close will proceed
    *                   at whatever price the oracle returns. The returned
