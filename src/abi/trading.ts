@@ -90,4 +90,21 @@ export const tradingAbi = [
     ],
     outputs: [],
   },
+  {
+    type: "function",
+    name: "openTradeMarketTimeout",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "_order", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "closeTradeMarketTimeout",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "_order", type: "uint256" },
+      { name: "retry", type: "bool" },
+    ],
+    outputs: [],
+  },
 ] as const;
