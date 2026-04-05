@@ -4,6 +4,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { arbitrum, arbitrumSepolia } from "viem/chains";
 import { mainnetConfig, testnetConfig } from "./config.js";
 import { OstiumError } from "./errors.js";
+import { Balance } from "./modules/balance.js";
 import { Price } from "./modules/price.js";
 import { Subgraph } from "./modules/subgraph.js";
 import { Trading } from "./modules/trading.js";
@@ -15,6 +16,7 @@ const CONFIGS = { mainnet: mainnetConfig, testnet: testnetConfig } as const;
 export class OstiumSDK {
   readonly price: Price;
   readonly subgraph: Subgraph;
+  readonly balance: Balance;
   readonly networkConfig: NetworkConfig;
 
   private readonly _trading?: Trading;
@@ -29,6 +31,12 @@ export class OstiumSDK {
 
     const transport = http(config.rpcUrl);
     this._publicClient = createPublicClient({ chain, transport });
+
+    this.balance = new Balance(
+      this._publicClient,
+      this.networkConfig.contracts.usdc,
+      config.logger,
+    );
 
     if (config.privateKey !== undefined) {
       let account: ReturnType<typeof privateKeyToAccount>;

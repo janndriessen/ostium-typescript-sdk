@@ -53,6 +53,11 @@ describe("OstiumSDK", () => {
     expect(sdk.subgraph).toBeDefined();
   });
 
+  it("balance is always available", () => {
+    const sdk = new OstiumSDK({ network: "testnet" });
+    expect(sdk.balance).toBeDefined();
+  });
+
   it("trading throws in read-only mode", () => {
     const sdk = new OstiumSDK({ network: "testnet" });
     expect(() => sdk.trading).toThrow(OstiumError);
