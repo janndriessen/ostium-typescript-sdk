@@ -688,4 +688,116 @@ describe("Trading", () => {
       await expect(trading.updateLimitOrder(0, 0, 108000)).rejects.toThrow(OstiumError);
     });
   });
+
+  describe("timeout recovery", () => {
+    // PriceRequested topic + an orderId=99 indexed arg, used to prove
+    // extractOrderId wiring on the retry path.
+    const PRICE_REQUESTED_TOPIC =
+      "0x8195bed39a3fd3cf674a481e5c9ebcec05361cfca110f800bedda374c24bdeea";
+    const priceRequestedLog = {
+      topics: [PRICE_REQUESTED_TOPIC, `0x${99n.toString(16).padStart(64, "0")}`],
+    };
+
+    describe("openTradeMarketTimeout", () => {
+      it("rejects invalid orderId", async () => {
+        const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+        await expect(trading.openTradeMarketTimeout("")).rejects.toThrow(OstiumError);
+        await expect(trading.openTradeMarketTimeout("abc")).rejects.toThrow(OstiumError);
+        await expect(trading.openTradeMarketTimeout("-1")).rejects.toThrow(OstiumError);
+        expect(writeContractMock).not.toHaveBeenCalled();
+      });
+
+      it("sends correct args to contract", async () => {
+        writeContractMock.mockResolvedValue("0xtimeoutHash");
+        waitForTransactionReceiptMock.mockResolvedValue({ status: "success", logs: [] });
+        const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+        await trading.openTradeMarketTimeout("42");
+
+        expect(writeContractMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            functionName: "openTradeMarketTimeout",
+            args: [42n],
+          }),
+        );
+      });
+
+      it("does not call readContract (no allowance check)", async () => {
+        writeContractMock.mockResolvedValue("0xtimeoutHash");
+        waitForTransactionReceiptMock.mockResolvedValue({ status: "success", logs: [] });
+        const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+        await trading.openTradeMarketTimeout("42");
+
+        expect(readContractMock).not.toHaveBeenCalled();
+      });
+
+      it("throws on reverted receipt", async () => {
+        writeContractMock.mockResolvedValue("0xhash");
+        waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted" });
+        const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+        await expect(trading.openTradeMarketTimeout("42")).rejects.toThrow(OstiumError);
+      });
+    });
+
+    describe("closeTradeMarketTimeout", () => {
+      it("rejects invalid orderId", async () => {
+        const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+        await expect(trading.closeTradeMarketTimeout("")).rejects.toThrow(OstiumError);
+        expect(writeContractMock).not.toHaveBeenCalled();
+      });
+
+      it("defaults retry to false", async () => {
+        writeContractMock.mockResolvedValue("0xtimeoutHash");
+        waitForTransactionReceiptMock.mockResolvedValue({ status: "success", logs: [] });
+        const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+        await trading.closeTradeMarketTimeout("42");
+
+        expect(writeContractMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            functionName: "closeTradeMarketTimeout",
+            args: [42n, false],
+          }),
+        );
+      });
+
+      it("forwards retry=true", async () => {
+        writeContractMock.mockResolvedValue("0xtimeoutHash");
+        waitForTransactionReceiptMock.mockResolvedValue({ status: "success", logs: [] });
+        const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+        await trading.closeTradeMarketTimeout("42", true);
+
+        expect(writeContractMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            functionName: "closeTradeMarketTimeout",
+            args: [42n, true],
+          }),
+        );
+      });
+
+      it("returns new orderId from PriceRequested log on retry", async () => {
+        writeContractMock.mockResolvedValue("0xtimeoutHash");
+        waitForTransactionReceiptMock.mockResolvedValue({
+          status: "success",
+          logs: [priceRequestedLog],
+        });
+        const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+        const result = await trading.closeTradeMarketTimeout("42", true);
+
+        expect(result.orderId).toBe("99");
+      });
+
+      it("throws on reverted receipt", async () => {
+        writeContractMock.mockResolvedValue("0xhash");
+        waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted" });
+        const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+        await expect(trading.closeTradeMarketTimeout("42", false)).rejects.toThrow(OstiumError);
+      });
+    });
+  });
 });
