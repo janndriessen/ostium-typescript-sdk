@@ -111,6 +111,24 @@ await sdk.trading.closeTradeMarketTimeout(orderId!, false); // cancel (default)
 | `getLatestPrices()`  | All live prices                            |
 | `getPrice(from, to)` | Single pair price (e.g., `"BTC"`, `"USD"`) |
 
+## Balance
+
+Read-only USDC and native ETH balance queries. Works without a wallet (pass an `rpcUrl` or use the chain default). All methods return raw onchain values as `bigint` — format with viem's `formatUnits` / `formatEther` for display.
+
+| Method                   | Description                                          |
+| ------------------------ | ---------------------------------------------------- |
+| `getUsdc(address)`       | USDC balance in 6-decimal base units                 |
+| `getEth(address)`        | Native ETH balance in wei                            |
+| `getBalances(address)`   | Both balances in parallel (single call, `Promise.all`) |
+
+```typescript
+import { formatUnits, formatEther } from "viem";
+
+const sdk = new OstiumSDK({ network: "mainnet" });
+const { usdc, eth } = await sdk.balance.getBalances("0x...");
+console.log(`${formatUnits(usdc, 6)} USDC, ${formatEther(eth)} ETH`);
+```
+
 ## Builder Fee
 
 Optionally configure a [builder fee](https://ostium-labs.gitbook.io/ostium-docs/developer/builder-codes) to earn a share of trading fees:

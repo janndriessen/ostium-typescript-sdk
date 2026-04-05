@@ -23,6 +23,9 @@ All core trading operations are ported from the Python SDK:
 | `get_open_trades(address)` | `getOpenTrades(address)` | Identical query |
 | `get_orders(trader)` | `getOrders(address)` | Identical query |
 | `get_latest_prices()` / `get_price()` | `getLatestPrices()` / `getPrice(from, to)` | Same endpoint, same response shape |
+| `balance.get_usdc_balance(address)` | `balance.getUsdc(address)` | Raw 6-decimal bigint; no cache |
+| `balance.get_ether_balance(address)` | `balance.getEth(address)` | Native ETH balance in wei |
+| `balance.get_balance(address, refresh?)` | `balance.getBalances(address)` | Both balances; TS version is always parallel via `Promise.all` |
 | Network config (mainnet/testnet) | `mainnetConfig` / `testnetConfig` | Same addresses, same chain IDs |
 | BuilderFee struct | `BuilderFee` interface | Same struct |
 | PriceRequested event parsing | `extractOrderId(receipt)` | Same approach (keccak topic match) |
@@ -72,7 +75,6 @@ The most complex module in the Python SDK, with compiled Rust dependencies for p
 
 ### Other Modules
 
-- **Balance** — contract read for account balance
 - **Faucet** — testnet USDC faucet
 
 ---
@@ -94,6 +96,7 @@ Different language, different ecosystem — some choices were adapted for TypeSc
 | SSL | Custom SSL context handling | Native `fetch` defaults | Node.js handles SSL out of the box |
 | Precision | Python `Decimal` + `PRECISION_*` constants | `bigint` + viem `parseUnits`/`formatUnits` | Idiomatic for the JS/TS ecosystem |
 | Logging | `print()` with `verbose` flag | `Logger` interface (injectable) | Composable with any logging framework |
+| Balance caching | 5-minute internal cache with `refresh=True` override | Stateless; cache at application layer if needed | Matches the rest of the SDK's stateless style |
 
 ---
 
@@ -102,8 +105,8 @@ Different language, different ecosystem — some choices were adapted for TypeSc
 | Metric | Value |
 |---|---|
 | Python SDK public methods | ~35 across all modules |
-| TypeScript SDK public methods | ~16 (8 trading + 4 subgraph + 2 price + client + connect) |
+| TypeScript SDK public methods | ~19 (8 trading + 4 subgraph + 3 balance + 2 price + client + connect) |
 | Core trading flow coverage | **100%** |
-| Python API surface ported | **~45%** by method count |
-| Features deferred | ~1,000+ lines equivalent |
+| Python API surface ported | **~55%** by method count |
+| Features deferred | ~950+ lines equivalent |
 | New in TypeScript | Strong typing, input validation, read-only mode, injectable logger |
