@@ -61,16 +61,38 @@ const trades = await sdk.subgraph.getOpenTrades("0x...");
 
 ## Trading Methods
 
-| Method                                                                        | Description                          |
-| ----------------------------------------------------------------------------- | ------------------------------------ |
-| `openTrade(params, atPrice)`                                                  | Open a market, limit, or stop trade  |
-| `closeTrade(pairIndex, tradeIndex, marketPrice, closePercentage?, slippage?)` | Close all or part of a position      |
-| `updateTp(pairIndex, tradeIndex, newTp)`                                      | Set/update take profit (0 to remove) |
-| `updateSl(pairIndex, tradeIndex, newSl)`                                      | Set/update stop loss (0 to remove)   |
-| `cancelLimitOrder(pairIndex, orderIndex)`                                     | Cancel a pending limit/stop order    |
-| `updateLimitOrder(pairIndex, orderIndex, price?, tp?, sl?)`                   | Update an open limit order           |
+| Method                                                                        | Description                                 |
+| ----------------------------------------------------------------------------- | ------------------------------------------- |
+| `openTrade(params, atPrice)`                                                  | Open a market, limit, or stop trade         |
+| `closeTrade(pairIndex, tradeIndex, marketPrice, closePercentage?, slippage?)` | Close all or part of a position             |
+| `updateTp(pairIndex, tradeIndex, newTp)`                                      | Set/update take profit (0 to remove)        |
+| `updateSl(pairIndex, tradeIndex, newSl)`                                      | Set/update stop loss (0 to remove)          |
+| `cancelLimitOrder(pairIndex, orderIndex)`                                     | Cancel a pending limit/stop order           |
+| `updateLimitOrder(pairIndex, orderIndex, price?, tp?, sl?)`                   | Update an open limit order                  |
+| `openTradeMarketTimeout(orderId)`                                             | Recover a timed-out pending open (cancel)   |
+| `closeTradeMarketTimeout(orderId, retry?)`                                    | Recover a timed-out pending close           |
 
 All write methods return a typed `TransactionResult` with `transactionHash`, `receipt`, and optional `orderId`.
+
+### Timeout Recovery
+
+Market orders on Ostium are filled asynchronously: `openTrade` / `closeTrade` emit a `PriceRequested` event, and an off-chain oracle fulfills the price shortly after. If the oracle misses its window, the order is left pending and can be recovered manually using the `orderId` returned from the original call.
+
+```typescript
+const { orderId } = await sdk.trading.openTrade(params, price.mid);
+
+// ... if the order never fulfills within the timeout window:
+await sdk.trading.openTradeMarketTimeout(orderId!);
+// Cancels the pending open and refunds collateral. There is no retry
+// path — the market order's original price intent is stale.
+
+// For a stalled close, you can retry (re-request a fresh oracle price)
+// or cancel (leave the position open):
+await sdk.trading.closeTradeMarketTimeout(orderId!, true);  // retry
+await sdk.trading.closeTradeMarketTimeout(orderId!, false); // cancel (default)
+```
+
+`orderId` can also be sourced from subgraph queries — anywhere in the SDK that returns an id works directly.
 
 ## Subgraph Queries
 
