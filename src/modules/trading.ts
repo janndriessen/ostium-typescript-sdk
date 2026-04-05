@@ -19,6 +19,7 @@ import {
   toChainSlippage,
   validateClosePercentage,
   validateNonNegativePrice,
+  validateOrderId,
   validateOrderIndex,
   validatePairIndex,
   validatePrice,
@@ -313,6 +314,90 @@ export class Trading {
     } catch (error) {
       if (error instanceof OstiumError) throw error;
       throw new OstiumError("updateLimitOrder failed", { cause: error });
+    }
+  }
+
+  /**
+   * Recover a timed-out pending market open by cancelling it and refunding
+   * collateral.
+   *
+   * Use this when an `openTrade` market order emitted a PriceRequested event
+   * but the oracle never fulfilled it within the protocol's timeout window.
+   * There is no retry path — the original market intent was "fill at the
+   * current price", and by the time a timeout has elapsed that price is
+   * stale. The only valid recovery is to cancel the pending open and refund
+   * the trader's collateral.
+   *
+   * @param orderId - The orderId returned from the original `openTrade` call
+   *                  (from `TransactionResult.orderId` or a subgraph query).
+   */
+  async openTradeMarketTimeout(orderId: string): Promise<TransactionResult> {
+    const id = validateOrderId(orderId);
+    this.logger?.info(`Recovering timed-out open for order ${id}`);
+
+    try {
+      const hash = await this.walletClient.writeContract({
+        account: this.account,
+        chain: null,
+        address: this.config.contracts.trading,
+        abi: tradingAbi,
+        functionName: "openTradeMarketTimeout",
+        args: [id],
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("openTradeMarketTimeout transaction reverted");
+      }
+
+      return { transactionHash: hash, receipt, orderId: extractOrderId(receipt) };
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("openTradeMarketTimeout failed", { cause: error });
+    }
+  }
+
+  /**
+   * Recover a timed-out pending market close.
+   *
+   * Use this when a `closeTrade` market order emitted a PriceRequested event
+   * but the oracle never fulfilled it. Unlike the open variant, the position
+   * is already on-chain, so both recovery paths are meaningful:
+   *
+   * - `retry=true`  — re-requests a fresh oracle price; the close will proceed
+   *                   at whatever price the oracle returns. The returned
+   *                   `TransactionResult.orderId` will contain the new request
+   *                   id, which can be tracked like any other pending order.
+   * - `retry=false` — cancels the pending close, leaving the position open.
+   *                   (Default.)
+   *
+   * @param orderId - The orderId returned from the original `closeTrade` call.
+   * @param retry   - If true, re-request a fresh oracle price. Defaults to
+   *                  false (cancel).
+   */
+  async closeTradeMarketTimeout(orderId: string, retry = false): Promise<TransactionResult> {
+    const id = validateOrderId(orderId);
+    this.logger?.info(`Recovering timed-out close for order ${id} (${retry ? "retry" : "cancel"})`);
+
+    try {
+      const hash = await this.walletClient.writeContract({
+        account: this.account,
+        chain: null,
+        address: this.config.contracts.trading,
+        abi: tradingAbi,
+        functionName: "closeTradeMarketTimeout",
+        args: [id, retry],
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("closeTradeMarketTimeout transaction reverted");
+      }
+
+      return { transactionHash: hash, receipt, orderId: extractOrderId(receipt) };
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("closeTradeMarketTimeout failed", { cause: error });
     }
   }
 

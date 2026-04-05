@@ -16,6 +16,8 @@ All core trading operations are ported from the Python SDK:
 | `update_sl(pairID, index, sl)` | `updateSl(pairIndex, tradeIndex, newSl)` | Identical |
 | `cancel_limit_order(pair_id, trade_index)` | `cancelLimitOrder(pairIndex, orderIndex)` | Identical |
 | `update_limit_order(pair_id, index, pvt_key, price?, tp?, sl?)` | `updateLimitOrder(pairIndex, orderIndex, price?, tp?, sl?)` | Both read existing order, merge unchanged fields |
+| `open_market_timeout(order_id)` | `openTradeMarketTimeout(orderId)` | Cancels a timed-out pending open and refunds collateral |
+| `close_market_timeout(order_id, retry)` | `closeTradeMarketTimeout(orderId, retry?)` | Retry or cancel a timed-out pending close |
 | `get_pairs()` | `getPairs()` | Identical query |
 | `get_pair_details(pair_id)` | `getPairDetails(pairIndex)` | Identical query |
 | `get_open_trades(address)` | `getOpenTrades(address)` | Identical query |
@@ -34,13 +36,6 @@ These Python SDK features are not included in v1. They can be added in future ve
 ### Delegation (~150 LOC)
 
 Every Python write method supports a `use_delegation` / `trader_address` branch for delegated trading. This adds branching to every method and is a more advanced use case.
-
-### Timeout Recovery (~80 LOC)
-
-- `close_market_timeout(order_id, retry)` — retry or cancel timed-out close orders
-- `open_market_timeout(order_id)` — cancel timed-out open orders
-
-Useful for operational recovery in production bots.
 
 ### Collateral Management (~60 LOC)
 
@@ -107,8 +102,8 @@ Different language, different ecosystem — some choices were adapted for TypeSc
 | Metric | Value |
 |---|---|
 | Python SDK public methods | ~35 across all modules |
-| TypeScript SDK public methods | ~14 (6 trading + 4 subgraph + 2 price + client + connect) |
+| TypeScript SDK public methods | ~16 (8 trading + 4 subgraph + 2 price + client + connect) |
 | Core trading flow coverage | **100%** |
-| Python API surface ported | **~40%** by method count |
-| Features deferred | ~1,100+ lines equivalent |
+| Python API surface ported | **~45%** by method count |
+| Features deferred | ~1,000+ lines equivalent |
 | New in TypeScript | Strong typing, input validation, read-only mode, injectable logger |

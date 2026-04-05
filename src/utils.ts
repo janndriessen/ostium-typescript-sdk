@@ -56,6 +56,33 @@ export function validateOrderIndex(index: number): void {
   assertInteger(index, "orderIndex", 0, 255);
 }
 
+export function validateOrderId(orderId: bigint | number | string): bigint {
+  if (typeof orderId === "string" && orderId.trim() === "") {
+    throw new OstiumError("Invalid orderId: empty string", {
+      suggestion: "orderId must be a non-negative integer (number, bigint, or string)",
+    });
+  }
+  if (typeof orderId === "number" && !Number.isSafeInteger(orderId)) {
+    throw new OstiumError(`Invalid orderId: ${orderId}`, {
+      suggestion: "orderId number must be a safe integer; use bigint or string for larger values",
+    });
+  }
+  let parsed: bigint;
+  try {
+    parsed = BigInt(orderId);
+  } catch {
+    throw new OstiumError(`Invalid orderId: ${orderId}`, {
+      suggestion: "orderId must be a non-negative integer (number, bigint, or string)",
+    });
+  }
+  if (parsed < 0n) {
+    throw new OstiumError(`Invalid orderId: ${orderId}`, {
+      suggestion: "orderId must be 0 or greater",
+    });
+  }
+  return parsed;
+}
+
 export function validateClosePercentage(pct: number): void {
   assertInteger(pct, "closePercentage", 1, 100);
 }

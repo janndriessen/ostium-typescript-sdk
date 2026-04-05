@@ -11,6 +11,7 @@ import {
   toChainPrice,
   toChainSlippage,
   validateClosePercentage,
+  validateOrderId,
   validateOrderIndex,
   validatePairIndex,
   validatePrice,
@@ -135,6 +136,44 @@ describe("validation", () => {
     it("rejects invalid order index", () => {
       expect(() => validateOrderIndex(-1)).toThrow(OstiumError);
       expect(() => validateOrderIndex(256)).toThrow(OstiumError);
+    });
+  });
+
+  describe("validateOrderId", () => {
+    it("accepts non-negative numbers and returns a bigint", () => {
+      expect(validateOrderId(0)).toBe(0n);
+      expect(validateOrderId(42)).toBe(42n);
+    });
+
+    it("accepts non-negative bigints and returns them unchanged", () => {
+      expect(validateOrderId(0n)).toBe(0n);
+      expect(validateOrderId(123456789012345678901234567890n)).toBe(
+        123456789012345678901234567890n,
+      );
+    });
+
+    it("rejects negative values", () => {
+      expect(() => validateOrderId(-1)).toThrow(OstiumError);
+      expect(() => validateOrderId(-1n)).toThrow(OstiumError);
+    });
+
+    it("rejects non-integer numbers and NaN", () => {
+      expect(() => validateOrderId(1.5)).toThrow(OstiumError);
+      expect(() => validateOrderId(Number.NaN)).toThrow(OstiumError);
+    });
+
+    it("accepts decimal and 0x-hex strings (matches subgraph/receipt shape)", () => {
+      expect(validateOrderId("0")).toBe(0n);
+      expect(validateOrderId("42")).toBe(42n);
+      expect(validateOrderId("0x2a")).toBe(42n);
+    });
+
+    it("rejects empty, negative, and malformed strings", () => {
+      expect(() => validateOrderId("")).toThrow(OstiumError);
+      expect(() => validateOrderId("   ")).toThrow(OstiumError);
+      expect(() => validateOrderId("-1")).toThrow(OstiumError);
+      expect(() => validateOrderId("abc")).toThrow(OstiumError);
+      expect(() => validateOrderId("1.5")).toThrow(OstiumError);
     });
   });
 
