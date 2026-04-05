@@ -4,6 +4,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { arbitrum, arbitrumSepolia } from "viem/chains";
 import { mainnetConfig, testnetConfig } from "./config.js";
 import { OstiumError } from "./errors.js";
+import { Balance } from "./modules/balance.js";
 import { Price } from "./modules/price.js";
 import { Subgraph } from "./modules/subgraph.js";
 import { Trading } from "./modules/trading.js";
@@ -15,10 +16,11 @@ const CONFIGS = { mainnet: mainnetConfig, testnet: testnetConfig } as const;
 export class OstiumSDK {
   readonly price: Price;
   readonly subgraph: Subgraph;
+  readonly balance: Balance;
   readonly networkConfig: NetworkConfig;
 
   private readonly _trading?: Trading;
-  private readonly _publicClient?: PublicClient;
+  private readonly _publicClient: PublicClient;
 
   constructor(config: OstiumSDKConfig) {
     this.networkConfig = CONFIGS[config.network];
@@ -26,6 +28,15 @@ export class OstiumSDK {
 
     this.price = new Price(config.logger);
     this.subgraph = new Subgraph(this.networkConfig.graphUrl, config.logger);
+
+    const transport = http(config.rpcUrl);
+    this._publicClient = createPublicClient({ chain, transport });
+
+    this.balance = new Balance(
+      this._publicClient,
+      this.networkConfig.contracts.usdc,
+      config.logger,
+    );
 
     if (config.privateKey !== undefined) {
       let account: ReturnType<typeof privateKeyToAccount>;
@@ -37,9 +48,6 @@ export class OstiumSDK {
           suggestion: "privateKey must be a 0x-prefixed 64-character hex string",
         });
       }
-      const transport = http(config.rpcUrl);
-
-      this._publicClient = createPublicClient({ chain, transport });
 
       const walletClient = createWalletClient({ account, chain, transport });
 
@@ -64,12 +72,6 @@ export class OstiumSDK {
   }
 
   async connect(): Promise<void> {
-    if (!this._publicClient) {
-      throw new OstiumError("connect() requires a privateKey", {
-        suggestion: "Pass a privateKey in OstiumSDKConfig to enable RPC connection",
-      });
-    }
-
     try {
       const chainId = await this._publicClient.getChainId();
       if (chainId !== this.networkConfig.chainId) {

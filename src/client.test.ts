@@ -53,6 +53,11 @@ describe("OstiumSDK", () => {
     expect(sdk.subgraph).toBeDefined();
   });
 
+  it("balance is always available", () => {
+    const sdk = new OstiumSDK({ network: "testnet" });
+    expect(sdk.balance).toBeDefined();
+  });
+
   it("trading throws in read-only mode", () => {
     const sdk = new OstiumSDK({ network: "testnet" });
     expect(() => sdk.trading).toThrow(OstiumError);
@@ -86,10 +91,12 @@ describe("OstiumSDK", () => {
   });
 
   describe("connect", () => {
-    it("throws in read-only mode", async () => {
+    it("works in read-only mode (no privateKey required)", async () => {
+      getChainIdMock.mockResolvedValue(421614);
       const sdk = new OstiumSDK({ network: "testnet" });
-      await expect(sdk.connect()).rejects.toThrow(OstiumError);
-      await expect(sdk.connect()).rejects.toThrow("privateKey");
+
+      await expect(sdk.connect()).resolves.toBeUndefined();
+      expect(getChainIdMock).toHaveBeenCalled();
     });
 
     it("succeeds when chain ID matches", async () => {

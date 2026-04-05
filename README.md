@@ -50,11 +50,12 @@ await sdk.trading.closeTrade(0, tradeIndex, price.mid);
 
 ## Read-Only Mode
 
-Omit `privateKey` to use the SDK without a wallet — price fetching and subgraph queries work without one.
+Omit `privateKey` to use the SDK without a wallet. Price fetching, subgraph queries, and any read-only RPC calls (including `connect()` for chain-ID validation) work without one. Pass an `rpcUrl` to point at your own node, or omit it to use viem's default for the selected chain.
 
 ```typescript
-const sdk = new OstiumSDK({ network: "mainnet" });
+const sdk = new OstiumSDK({ network: "mainnet", rpcUrl: process.env.RPC_URL });
 
+await sdk.connect(); // optional: validates RPC reachability + chain ID
 const prices = await sdk.price.getLatestPrices();
 const trades = await sdk.subgraph.getOpenTrades("0x...");
 ```
@@ -109,6 +110,24 @@ await sdk.trading.closeTradeMarketTimeout(orderId!, false); // cancel (default)
 | -------------------- | ------------------------------------------ |
 | `getLatestPrices()`  | All live prices                            |
 | `getPrice(from, to)` | Single pair price (e.g., `"BTC"`, `"USD"`) |
+
+## Balance
+
+Read-only USDC and native ETH balance queries. Works without a wallet (pass an `rpcUrl` or use the chain default). All methods return raw onchain values as `bigint` — format with viem's `formatUnits` / `formatEther` for display.
+
+| Method                   | Description                                          |
+| ------------------------ | ---------------------------------------------------- |
+| `getUsdc(address)`       | USDC balance in 6-decimal base units                 |
+| `getEth(address)`        | Native ETH balance in wei                            |
+| `getBalances(address)`   | Both balances in parallel (single call, `Promise.all`) |
+
+```typescript
+import { formatUnits, formatEther } from "viem";
+
+const sdk = new OstiumSDK({ network: "mainnet" });
+const { usdc, eth } = await sdk.balance.getBalances("0x...");
+console.log(`${formatUnits(usdc, 6)} USDC, ${formatEther(eth)} ETH`);
+```
 
 ## Builder Fee
 
