@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OstiumError } from "../errors.js";
-import type { OpenOrder, OpenTrade, Order, Pair, Trade } from "../types.js";
+import type { HistoryOrder, OpenOrder, OpenTrade, Order, Pair, Trade } from "../types.js";
 import { Subgraph } from "./subgraph.js";
 
 const requestMock = vi.fn();
@@ -203,6 +203,83 @@ describe("Subgraph", () => {
       requestMock.mockResolvedValue({ limits: [mockOrder] });
       const result = await subgraph.getOrders("0xabc1230000000000000000000000000000000000");
       expect(result).toEqual([mockOrder]);
+    });
+  });
+
+  describe("getRecentHistory", () => {
+    const mockHistoryOrder: HistoryOrder = {
+      id: "42",
+      isBuy: true,
+      trader: "0xabc123",
+      notional: "500000000",
+      tradeNotional: "500000000",
+      collateral: "100000000",
+      leverage: "5000",
+      orderType: "0",
+      orderAction: "Open",
+      price: "107000000000000000000000",
+      initiatedAt: "1748460056",
+      executedAt: "1748460060",
+      executedTx: "0xexec",
+      isCancelled: false,
+      cancelReason: null,
+      profitPercent: "0",
+      totalProfitPercent: "0",
+      isPending: false,
+      amountSentToTrader: "0",
+      rolloverFee: "0",
+      fundingFee: "0",
+      pair: {
+        id: "0",
+        from: "BTC",
+        to: "USD",
+        feed: "0x1234",
+        longOI: "1000000",
+        shortOI: "500000",
+        group: { name: "crypto" },
+      },
+    };
+
+    it("rejects invalid address", async () => {
+      await expect(subgraph.getRecentHistory("not-an-address")).rejects.toThrow(OstiumError);
+      expect(requestMock).not.toHaveBeenCalled();
+    });
+
+    it("returns history orders", async () => {
+      requestMock.mockResolvedValue({ orders: [mockHistoryOrder] });
+      const result = await subgraph.getRecentHistory("0xabc1230000000000000000000000000000000000");
+      expect(result).toEqual([mockHistoryOrder]);
+    });
+
+    it("passes count parameter", async () => {
+      requestMock.mockResolvedValue({ orders: [] });
+      await subgraph.getRecentHistory("0xabc1230000000000000000000000000000000000", 5);
+      expect(requestMock).toHaveBeenCalledWith(expect.any(String), {
+        trader: "0xabc1230000000000000000000000000000000000",
+        last_n_orders: 5,
+      });
+    });
+
+    it("defaults to 10 orders", async () => {
+      requestMock.mockResolvedValue({ orders: [] });
+      await subgraph.getRecentHistory("0xabc1230000000000000000000000000000000000");
+      expect(requestMock).toHaveBeenCalledWith(expect.any(String), {
+        trader: "0xabc1230000000000000000000000000000000000",
+        last_n_orders: 10,
+      });
+    });
+  });
+
+  describe("getLiqMarginThresholdP", () => {
+    it("returns threshold value", async () => {
+      requestMock.mockResolvedValue({ metaDatas: [{ liqMarginThresholdP: "90" }] });
+      const result = await subgraph.getLiqMarginThresholdP();
+      expect(result).toBe("90");
+    });
+
+    it("throws OstiumError when metaDatas is empty", async () => {
+      requestMock.mockResolvedValue({ metaDatas: [] });
+      await expect(subgraph.getLiqMarginThresholdP()).rejects.toThrow(OstiumError);
     });
   });
 

@@ -8,6 +8,8 @@ export { Trading } from "./modules/trading.js";
 export type {
   BuilderConfig,
   BuilderFee,
+  HistoryOrder,
+  HistoryOrderPair,
   Logger,
   NetworkConfig,
   OpenOrder,

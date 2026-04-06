@@ -2,6 +2,7 @@ import { GraphQLClient, gql } from "graphql-request";
 import { isAddress } from "viem";
 import { OstiumError } from "../errors.js";
 import type {
+  HistoryOrder,
   Logger,
   OpenOrder,
   OpenTrade,
@@ -280,6 +281,58 @@ const GET_TRADE_BY_ID = gql`
   }
 `;
 
+const GET_RECENT_HISTORY = gql`
+  query getRecentHistory($trader: Bytes, $last_n_orders: Int) {
+    orders(
+      where: { trader: $trader, isPending: false }
+      first: $last_n_orders
+      orderBy: executedAt
+      orderDirection: desc
+    ) {
+      id
+      isBuy
+      trader
+      notional
+      tradeNotional
+      collateral
+      leverage
+      orderType
+      orderAction
+      price
+      initiatedAt
+      executedAt
+      executedTx
+      isCancelled
+      cancelReason
+      profitPercent
+      totalProfitPercent
+      isPending
+      amountSentToTrader
+      rolloverFee
+      fundingFee
+      pair {
+        id
+        from
+        to
+        feed
+        longOI
+        shortOI
+        group {
+          name
+        }
+      }
+    }
+  }
+`;
+
+const GET_LIQ_MARGIN_THRESHOLD = gql`
+  query metaDatas {
+    metaDatas {
+      liqMarginThresholdP
+    }
+  }
+`;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -336,6 +389,33 @@ export class Subgraph {
       trader: address,
     });
     return data.limits;
+  }
+
+  async getRecentHistory(address: string, count = 10): Promise<HistoryOrder[]> {
+    if (!isAddress(address)) {
+      throw new OstiumError(`Invalid address: ${address}`, {
+        suggestion: "address must be a valid Ethereum address",
+      });
+    }
+    this.logger?.debug(`Fetching recent history for ${address} (last ${count})`);
+    const data = await this.request<{ orders: HistoryOrder[] }>(GET_RECENT_HISTORY, {
+      trader: address,
+      last_n_orders: count,
+    });
+    return data.orders;
+  }
+
+  async getLiqMarginThresholdP(): Promise<string> {
+    this.logger?.debug("Fetching liquidation margin threshold");
+    const data = await this.request<{ metaDatas: { liqMarginThresholdP: string }[] }>(
+      GET_LIQ_MARGIN_THRESHOLD,
+    );
+    if (!data.metaDatas[0]) {
+      throw new OstiumError("No metadata found in subgraph", {
+        suggestion: "The subgraph may still be indexing or the endpoint may be unavailable",
+      });
+    }
+    return data.metaDatas[0].liqMarginThresholdP;
   }
 
   async getOrderById(orderId: string): Promise<Order | null> {
@@ -403,7 +483,7 @@ export class Subgraph {
     });
   }
 
-  private async request<T>(query: string, variables?: Record<string, string>): Promise<T> {
+  private async request<T>(query: string, variables?: Record<string, string | number>): Promise<T> {
     try {
       return await this.client.request<T>(query, variables);
     } catch (error) {
