@@ -4,7 +4,7 @@
 
 Unofficial TypeScript SDK for [Ostium](https://ostium.io) — a decentralized perpetuals exchange on Arbitrum.
 
-> **v0.1.0** — Early release. Core trading flow is fully implemented and tested (97% statement coverage, 100% line coverage). API may change before v1.
+> **v0.2.0** — Adds collateral management, order tracking, subgraph queries, and convenience wrappers. ~77% of the Python SDK surface ported.
 
 ## Install
 
@@ -211,7 +211,7 @@ Check out the full comparison in [`DIFF.md`](./DIFF.md).
 
 ## Status
 
-This is an early version (v0.1.0). The core trading flow is complete and tested, but some features from the Python SDK are intentionally deferred (formulae/PnL, delegation, balance, faucet).
+This is v0.2.0. Core trading, collateral management, order tracking, and subgraph queries are implemented and tested. Remaining deferred features: formulae/PnL, delegation, faucet.
 
 ## Issues
 

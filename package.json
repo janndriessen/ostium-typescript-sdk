@@ -1,6 +1,6 @@
 {
   "name": "ostium-typescript-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Unofficial TypeScript SDK for Ostium — a decentralized perpetuals exchange on Arbitrum",
   "type": "module",
   "main": "./dist/index.js",
