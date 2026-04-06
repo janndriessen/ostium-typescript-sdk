@@ -191,6 +191,88 @@ export interface OpenOrder {
 }
 
 // ---------------------------------------------------------------------------
+// Order tracking
+// ---------------------------------------------------------------------------
+
+export interface OrderPair {
+  id: string;
+  from: string;
+  to: string;
+  feed: string;
+}
+
+export interface Order {
+  id: string;
+  trader: string;
+  pair: OrderPair;
+  tradeID: string;
+  limitID: string;
+  orderType: string;
+  orderAction: string;
+  price: string;
+  priceAfterImpact: string;
+  priceImpactP: string;
+  collateral: string;
+  notional: string;
+  tradeNotional: string;
+  profitPercent: string;
+  totalProfitPercent: string;
+  amountSentToTrader: string;
+  isBuy: boolean;
+  initiatedAt: string;
+  executedAt: string;
+  initiatedTx: string;
+  executedTx: string;
+  initiatedBlock: string;
+  executedBlock: string;
+  leverage: string;
+  isPending: boolean;
+  isCancelled: boolean;
+  cancelReason: string | null;
+  devFee: string;
+  vaultFee: string;
+  oracleFee: string;
+  liquidationFee: string;
+  fundingFee: string;
+  rolloverFee: string;
+  closePercent: string;
+}
+
+export interface Trade {
+  id: string;
+  trader: string;
+  pair: OrderPair;
+  index: string;
+  tradeID: string;
+  tradeType: string;
+  openPrice: string;
+  closePrice: string;
+  takeProfitPrice: string;
+  stopLossPrice: string;
+  collateral: string;
+  notional: string;
+  tradeNotional: string;
+  highestLeverage: string;
+  leverage: string;
+  isBuy: boolean;
+  isOpen: boolean;
+  closeInitiated: boolean;
+  funding: string;
+  rollover: string;
+  timestamp: string;
+}
+
+export interface TrackOrderOptions {
+  intervalMs?: number;
+  maxAttempts?: number;
+}
+
+export interface TrackOrderResult {
+  order: Order;
+  trade: Trade | null;
+}
+
+// ---------------------------------------------------------------------------
 // Price API
 // ---------------------------------------------------------------------------
 

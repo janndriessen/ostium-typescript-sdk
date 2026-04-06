@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OstiumError } from "../errors.js";
-import type { OpenOrder, OpenTrade, Pair } from "../types.js";
+import type { OpenOrder, OpenTrade, Order, Pair, Trade } from "../types.js";
 import { Subgraph } from "./subgraph.js";
 
 const requestMock = vi.fn();
@@ -203,6 +203,301 @@ describe("Subgraph", () => {
       requestMock.mockResolvedValue({ limits: [mockOrder] });
       const result = await subgraph.getOrders("0xabc1230000000000000000000000000000000000");
       expect(result).toEqual([mockOrder]);
+    });
+  });
+
+  describe("getOrderById", () => {
+    const mockOrderEntity: Order = {
+      id: "42",
+      trader: "0xabc123",
+      pair: { id: "0", from: "BTC", to: "USD", feed: "0x1234" },
+      tradeID: "100",
+      limitID: "0",
+      orderType: "0",
+      orderAction: "Open",
+      price: "107000000000000000000000",
+      priceAfterImpact: "107000000000000000000000",
+      priceImpactP: "0",
+      collateral: "100000000",
+      notional: "500000000",
+      tradeNotional: "500000000",
+      profitPercent: "0",
+      totalProfitPercent: "0",
+      amountSentToTrader: "0",
+      isBuy: true,
+      initiatedAt: "1748460056",
+      executedAt: "1748460060",
+      initiatedTx: "0xinit",
+      executedTx: "0xexec",
+      initiatedBlock: "100000",
+      executedBlock: "100001",
+      leverage: "5000",
+      isPending: false,
+      isCancelled: false,
+      cancelReason: null,
+      devFee: "100000",
+      vaultFee: "200000",
+      oracleFee: "50000",
+      liquidationFee: "0",
+      fundingFee: "0",
+      rolloverFee: "0",
+      closePercent: "0",
+    };
+
+    it("returns order when found", async () => {
+      requestMock.mockResolvedValue({ orders: [mockOrderEntity] });
+      const result = await subgraph.getOrderById("42");
+      expect(result).toEqual(mockOrderEntity);
+      expect(requestMock).toHaveBeenCalledWith(expect.any(String), { order_id: "42" });
+    });
+
+    it("returns null when not found", async () => {
+      requestMock.mockResolvedValue({ orders: [] });
+      const result = await subgraph.getOrderById("999");
+      expect(result).toBeNull();
+    });
+
+    it("rejects empty string", async () => {
+      await expect(subgraph.getOrderById("")).rejects.toThrow(OstiumError);
+      expect(requestMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects whitespace-only string", async () => {
+      await expect(subgraph.getOrderById("   ")).rejects.toThrow(OstiumError);
+      expect(requestMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getTradeById", () => {
+    const mockTradeEntity: Trade = {
+      id: "100",
+      trader: "0xabc123",
+      pair: { id: "0", from: "BTC", to: "USD", feed: "0x1234" },
+      index: "0",
+      tradeID: "100",
+      tradeType: "0",
+      openPrice: "107000000000000000000000",
+      closePrice: "0",
+      takeProfitPrice: "0",
+      stopLossPrice: "0",
+      collateral: "100000000",
+      notional: "500000000",
+      tradeNotional: "500000000",
+      highestLeverage: "5000",
+      leverage: "5000",
+      isBuy: true,
+      isOpen: true,
+      closeInitiated: false,
+      funding: "0",
+      rollover: "0",
+      timestamp: "1748460060",
+    };
+
+    it("returns trade when found", async () => {
+      requestMock.mockResolvedValue({ trades: [mockTradeEntity] });
+      const result = await subgraph.getTradeById("100");
+      expect(result).toEqual(mockTradeEntity);
+      expect(requestMock).toHaveBeenCalledWith(expect.any(String), { trade_id: "100" });
+    });
+
+    it("returns null when not found", async () => {
+      requestMock.mockResolvedValue({ trades: [] });
+      const result = await subgraph.getTradeById("999");
+      expect(result).toBeNull();
+    });
+
+    it("rejects empty string", async () => {
+      await expect(subgraph.getTradeById("")).rejects.toThrow(OstiumError);
+      expect(requestMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("trackOrder", () => {
+    const fulfilledOrder: Order = {
+      id: "42",
+      trader: "0xabc123",
+      pair: { id: "0", from: "BTC", to: "USD", feed: "0x1234" },
+      tradeID: "100",
+      limitID: "0",
+      orderType: "0",
+      orderAction: "Open",
+      price: "107000000000000000000000",
+      priceAfterImpact: "107000000000000000000000",
+      priceImpactP: "0",
+      collateral: "100000000",
+      notional: "500000000",
+      tradeNotional: "500000000",
+      profitPercent: "0",
+      totalProfitPercent: "0",
+      amountSentToTrader: "0",
+      isBuy: true,
+      initiatedAt: "1748460056",
+      executedAt: "1748460060",
+      initiatedTx: "0xinit",
+      executedTx: "0xexec",
+      initiatedBlock: "100000",
+      executedBlock: "100001",
+      leverage: "5000",
+      isPending: false,
+      isCancelled: false,
+      cancelReason: null,
+      devFee: "100000",
+      vaultFee: "200000",
+      oracleFee: "50000",
+      liquidationFee: "0",
+      fundingFee: "0",
+      rolloverFee: "0",
+      closePercent: "0",
+    };
+
+    const pendingOrder: Order = {
+      ...fulfilledOrder,
+      isPending: true,
+      executedAt: "0",
+      executedTx: "",
+      executedBlock: "0",
+    };
+
+    const cancelledOrder: Order = {
+      ...fulfilledOrder,
+      isPending: false,
+      isCancelled: true,
+      cancelReason: "TIMEOUT",
+    };
+
+    const tradeEntity: Trade = {
+      id: "100",
+      trader: "0xabc123",
+      pair: { id: "0", from: "BTC", to: "USD", feed: "0x1234" },
+      index: "0",
+      tradeID: "100",
+      tradeType: "0",
+      openPrice: "107000000000000000000000",
+      closePrice: "0",
+      takeProfitPrice: "0",
+      stopLossPrice: "0",
+      collateral: "100000000",
+      notional: "500000000",
+      tradeNotional: "500000000",
+      highestLeverage: "5000",
+      leverage: "5000",
+      isBuy: true,
+      isOpen: true,
+      closeInitiated: false,
+      funding: "0",
+      rollover: "0",
+      timestamp: "1748460060",
+    };
+
+    it("returns order + trade when order fills immediately", async () => {
+      requestMock
+        .mockResolvedValueOnce({ orders: [fulfilledOrder] })
+        .mockResolvedValueOnce({ trades: [tradeEntity] });
+
+      const result = await subgraph.trackOrder("42", { intervalMs: 0, maxAttempts: 5 });
+
+      expect(result.order).toEqual(fulfilledOrder);
+      expect(result.trade).toEqual(tradeEntity);
+    });
+
+    it("returns order + null trade when cancelled", async () => {
+      requestMock.mockResolvedValueOnce({ orders: [cancelledOrder] });
+
+      const result = await subgraph.trackOrder("42", { intervalMs: 0, maxAttempts: 5 });
+
+      expect(result.order).toEqual(cancelledOrder);
+      expect(result.trade).toBeNull();
+    });
+
+    it("retries when order is pending then resolves", async () => {
+      requestMock
+        .mockResolvedValueOnce({ orders: [pendingOrder] })
+        .mockResolvedValueOnce({ orders: [fulfilledOrder] })
+        .mockResolvedValueOnce({ trades: [tradeEntity] });
+
+      const result = await subgraph.trackOrder("42", { intervalMs: 0, maxAttempts: 5 });
+
+      expect(result.order).toEqual(fulfilledOrder);
+      expect(result.trade).toEqual(tradeEntity);
+      expect(requestMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("retries when order is not indexed yet", async () => {
+      requestMock
+        .mockResolvedValueOnce({ orders: [] })
+        .mockResolvedValueOnce({ orders: [fulfilledOrder] })
+        .mockResolvedValueOnce({ trades: [tradeEntity] });
+
+      const result = await subgraph.trackOrder("42", { intervalMs: 0, maxAttempts: 5 });
+
+      expect(result.order).toEqual(fulfilledOrder);
+      expect(result.trade).toEqual(tradeEntity);
+      expect(requestMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("retries when trade is not indexed yet", async () => {
+      requestMock
+        .mockResolvedValueOnce({ orders: [fulfilledOrder] })
+        .mockResolvedValueOnce({ trades: [] })
+        .mockResolvedValueOnce({ orders: [fulfilledOrder] })
+        .mockResolvedValueOnce({ trades: [tradeEntity] });
+
+      const result = await subgraph.trackOrder("42", { intervalMs: 0, maxAttempts: 5 });
+
+      expect(result.order).toEqual(fulfilledOrder);
+      expect(result.trade).toEqual(tradeEntity);
+      expect(requestMock).toHaveBeenCalledTimes(4);
+    });
+
+    it("handles partial close (trade stays open)", async () => {
+      const closeOrder: Order = { ...fulfilledOrder, orderAction: "Close", closePercent: "5000" };
+      const openTrade: Trade = { ...tradeEntity, isOpen: true };
+
+      requestMock
+        .mockResolvedValueOnce({ orders: [closeOrder] })
+        .mockResolvedValueOnce({ trades: [openTrade] });
+
+      const result = await subgraph.trackOrder("42", { intervalMs: 0, maxAttempts: 5 });
+
+      expect(result.order).toEqual(closeOrder);
+      expect(result.trade).toEqual(openTrade);
+      expect(result.trade?.isOpen).toBe(true);
+    });
+
+    it("handles full close (trade is closed)", async () => {
+      const closeOrder: Order = { ...fulfilledOrder, orderAction: "Close", closePercent: "10000" };
+      const closedTrade: Trade = { ...tradeEntity, isOpen: false };
+
+      requestMock
+        .mockResolvedValueOnce({ orders: [closeOrder] })
+        .mockResolvedValueOnce({ trades: [closedTrade] });
+
+      const result = await subgraph.trackOrder("42", { intervalMs: 0, maxAttempts: 5 });
+
+      expect(result.order).toEqual(closeOrder);
+      expect(result.trade?.isOpen).toBe(false);
+    });
+
+    it("throws OstiumError after max attempts", async () => {
+      requestMock.mockResolvedValue({ orders: [pendingOrder] });
+
+      await expect(subgraph.trackOrder("42", { intervalMs: 0, maxAttempts: 3 })).rejects.toThrow(
+        OstiumError,
+      );
+      expect(requestMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not sleep after final attempt", async () => {
+      vi.useFakeTimers();
+      requestMock.mockResolvedValue({ orders: [pendingOrder] });
+
+      const promise = subgraph.trackOrder("42", { intervalMs: 500, maxAttempts: 1 });
+      const result = await promise.catch((e: unknown) => e);
+
+      expect(result).toBeInstanceOf(OstiumError);
+      // With maxAttempts=1, should not have scheduled any timers
+      expect(vi.getTimerCount()).toBe(0);
+      vi.useRealTimers();
     });
   });
 

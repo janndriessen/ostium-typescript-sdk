@@ -1,7 +1,16 @@
 import { GraphQLClient, gql } from "graphql-request";
 import { isAddress } from "viem";
 import { OstiumError } from "../errors.js";
-import type { Logger, OpenOrder, OpenTrade, Pair } from "../types.js";
+import type {
+  Logger,
+  OpenOrder,
+  OpenTrade,
+  Order,
+  Pair,
+  TrackOrderOptions,
+  TrackOrderResult,
+  Trade,
+} from "../types.js";
 
 const GET_PAIRS = gql`
   query getPairs {
@@ -192,6 +201,89 @@ const GET_ORDERS = gql`
   }
 `;
 
+const GET_ORDER_BY_ID = gql`
+  query getOrder($order_id: ID!) {
+    orders(where: { id: $order_id }) {
+      id
+      trader
+      pair {
+        id
+        from
+        to
+        feed
+      }
+      tradeID
+      limitID
+      orderType
+      orderAction
+      price
+      priceAfterImpact
+      priceImpactP
+      collateral
+      notional
+      tradeNotional
+      profitPercent
+      totalProfitPercent
+      amountSentToTrader
+      isBuy
+      initiatedAt
+      executedAt
+      initiatedTx
+      executedTx
+      initiatedBlock
+      executedBlock
+      leverage
+      isPending
+      isCancelled
+      cancelReason
+      devFee
+      vaultFee
+      oracleFee
+      liquidationFee
+      fundingFee
+      rolloverFee
+      closePercent
+    }
+  }
+`;
+
+const GET_TRADE_BY_ID = gql`
+  query getTrade($trade_id: ID!) {
+    trades(where: { id: $trade_id }) {
+      id
+      trader
+      pair {
+        id
+        from
+        to
+        feed
+      }
+      index
+      tradeID
+      tradeType
+      openPrice
+      closePrice
+      takeProfitPrice
+      stopLossPrice
+      collateral
+      notional
+      tradeNotional
+      highestLeverage
+      leverage
+      isBuy
+      isOpen
+      closeInitiated
+      funding
+      rollover
+      timestamp
+    }
+  }
+`;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class Subgraph {
   private readonly client: GraphQLClient;
   private readonly logger?: Logger;
@@ -244,6 +336,71 @@ export class Subgraph {
       trader: address,
     });
     return data.limits;
+  }
+
+  async getOrderById(orderId: string): Promise<Order | null> {
+    if (!orderId?.trim()) {
+      throw new OstiumError("Invalid orderId: empty string", {
+        suggestion: "orderId must be a non-empty string",
+      });
+    }
+    this.logger?.debug(`Fetching order ${orderId}`);
+    const data = await this.request<{ orders: Order[] }>(GET_ORDER_BY_ID, {
+      order_id: orderId,
+    });
+    return data.orders[0] ?? null;
+  }
+
+  async getTradeById(tradeId: string): Promise<Trade | null> {
+    if (!tradeId?.trim()) {
+      throw new OstiumError("Invalid tradeId: empty string", {
+        suggestion: "tradeId must be a non-empty string",
+      });
+    }
+    this.logger?.debug(`Fetching trade ${tradeId}`);
+    const data = await this.request<{ trades: Trade[] }>(GET_TRADE_BY_ID, {
+      trade_id: tradeId,
+    });
+    return data.trades[0] ?? null;
+  }
+
+  async trackOrder(orderId: string, options?: TrackOrderOptions): Promise<TrackOrderResult> {
+    const intervalMs = options?.intervalMs ?? 1000;
+    const maxAttempts = options?.maxAttempts ?? 30;
+
+    this.logger?.info(`Tracking order ${orderId}`);
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const order = await this.getOrderById(orderId);
+
+      if (!order || order.isPending) {
+        this.logger?.debug(
+          `Attempt ${attempt}/${maxAttempts}: ${order ? "pending" : "not indexed yet"}`,
+        );
+        if (attempt < maxAttempts) await sleep(intervalMs);
+        continue;
+      }
+
+      if (order.isCancelled) {
+        this.logger?.info(`Order ${orderId} cancelled: ${order.cancelReason ?? "unknown"}`);
+        return { order, trade: null };
+      }
+
+      const trade = await this.getTradeById(order.tradeID);
+
+      if (!trade) {
+        this.logger?.debug(`Attempt ${attempt}/${maxAttempts}: trade not indexed yet`);
+        if (attempt < maxAttempts) await sleep(intervalMs);
+        continue;
+      }
+
+      this.logger?.info(`Order ${orderId} fulfilled`);
+      return { order, trade };
+    }
+
+    throw new OstiumError(`Order ${orderId} not resolved after ${maxAttempts} attempts`, {
+      suggestion: "Increase maxAttempts or check the order status manually",
+    });
   }
 
   private async request<T>(query: string, variables?: Record<string, string>): Promise<T> {
