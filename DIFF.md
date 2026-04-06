@@ -14,6 +14,8 @@ All core trading operations are ported from the Python SDK:
 | `close_trade(pair_id, trade_index, market_price, close_percentage)` | `closeTrade(pairIndex, tradeIndex, marketPrice, closePercentage?)` | Same params, same close percentage scaling |
 | `update_tp(pair_id, trade_index, tp_price)` | `updateTp(pairIndex, tradeIndex, newTp)` | Identical |
 | `update_sl(pairID, index, sl)` | `updateSl(pairIndex, tradeIndex, newSl)` | Identical |
+| `add_collateral(pairID, index, collateral)` | `addCollateral(pairIndex, tradeIndex, amount)` | Same flow; TS calls `topUpCollateral` onchain |
+| `remove_collateral(pair_id, trade_index, remove_amount)` | `removeCollateral(pairIndex, tradeIndex, amount)` | Async (oracle); extracts orderId from PriceRequested |
 | `cancel_limit_order(pair_id, trade_index)` | `cancelLimitOrder(pairIndex, orderIndex)` | Identical |
 | `update_limit_order(pair_id, index, pvt_key, price?, tp?, sl?)` | `updateLimitOrder(pairIndex, orderIndex, price?, tp?, sl?)` | Both read existing order, merge unchanged fields |
 | `open_market_timeout(order_id)` | `openTradeMarketTimeout(orderId)` | Cancels a timed-out pending open and refunds collateral |
@@ -39,11 +41,6 @@ These Python SDK features are not included in v1. They can be added in future ve
 ### Delegation (~150 LOC)
 
 Every Python write method supports a `use_delegation` / `trader_address` branch for delegated trading. This adds branching to every method and is a more advanced use case.
-
-### Collateral Management (~60 LOC)
-
-- `add_collateral(pairID, index, collateral)` — add collateral to an open position
-- `remove_collateral(pair_id, trade_index, remove_amount)` — remove collateral from an open position
 
 ### Withdraw (~30 LOC)
 

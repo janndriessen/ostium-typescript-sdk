@@ -107,4 +107,26 @@ export const tradingAbi = [
     ],
     outputs: [],
   },
+  {
+    type: "function",
+    name: "topUpCollateral",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "pairIndex", type: "uint16" },
+      { name: "index", type: "uint8" },
+      { name: "topUpAmount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "removeCollateral",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "pairIndex", type: "uint16" },
+      { name: "index", type: "uint8" },
+      { name: "removeAmount", type: "uint256" },
+    ],
+    outputs: [],
+  },
 ] as const;

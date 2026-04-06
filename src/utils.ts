@@ -44,6 +44,19 @@ function assertNonNegative(value: number, name: string): void {
   }
 }
 
+function assertCollateralAmount(value: number, name: string): void {
+  assertPositive(value, name);
+  try {
+    if (toChainCollateral(value) === 0n) {
+      throw new Error("Collateral amount truncates to zero");
+    }
+  } catch {
+    throw new OstiumError(`Invalid ${name}: ${value}`, {
+      suggestion: `${name} must be at least 0.000001 USDC (6-decimal precision)`,
+    });
+  }
+}
+
 export function validatePairIndex(pairIndex: number): void {
   assertInteger(pairIndex, "pairIndex", 0, 65535);
 }
@@ -87,6 +100,10 @@ export function validateClosePercentage(pct: number): void {
   assertInteger(pct, "closePercentage", 1, 100);
 }
 
+export function validateCollateralAmount(amount: number): void {
+  assertCollateralAmount(amount, "amount");
+}
+
 export function validatePrice(price: number): void {
   assertPositive(price, "price");
 }
@@ -99,7 +116,7 @@ const VALID_DIRECTIONS = new Set(["long", "short"]);
 const VALID_ORDER_TYPES = new Set(["market", "limit", "stop"]);
 
 export function validateTradeParams(params: TradeParams): void {
-  assertPositive(params.collateral, "collateral");
+  assertCollateralAmount(params.collateral, "collateral");
   assertPositive(params.leverage, "leverage");
   validatePairIndex(params.pairIndex);
 

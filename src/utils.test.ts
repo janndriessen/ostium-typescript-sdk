@@ -11,6 +11,7 @@ import {
   toChainPrice,
   toChainSlippage,
   validateClosePercentage,
+  validateCollateralAmount,
   validateOrderId,
   validateOrderIndex,
   validatePairIndex,
@@ -189,6 +190,33 @@ describe("validation", () => {
     });
   });
 
+  describe("validateCollateralAmount", () => {
+    it("accepts positive amount", () => {
+      expect(() => validateCollateralAmount(50)).not.toThrow();
+      expect(() => validateCollateralAmount(0.01)).not.toThrow();
+    });
+
+    it("rejects zero", () => {
+      expect(() => validateCollateralAmount(0)).toThrow(OstiumError);
+    });
+
+    it("rejects negative", () => {
+      expect(() => validateCollateralAmount(-1)).toThrow(OstiumError);
+    });
+
+    it("rejects NaN", () => {
+      expect(() => validateCollateralAmount(Number.NaN)).toThrow(OstiumError);
+    });
+
+    it("rejects values that truncate to zero at 6-decimal USDC precision", () => {
+      expect(() => validateCollateralAmount(0.0000001)).toThrow(OstiumError);
+    });
+
+    it("accepts the smallest representable USDC amount", () => {
+      expect(() => validateCollateralAmount(0.000001)).not.toThrow();
+    });
+  });
+
   describe("validatePrice", () => {
     it("accepts positive prices", () => {
       expect(() => validatePrice(107646.03)).not.toThrow();
@@ -222,6 +250,12 @@ describe("validation", () => {
 
     it("rejects zero collateral", () => {
       expect(() => validateTradeParams({ ...validParams, collateral: 0 })).toThrow(OstiumError);
+    });
+
+    it("rejects collateral values below 6-decimal USDC precision", () => {
+      expect(() => validateTradeParams({ ...validParams, collateral: 0.0000001 })).toThrow(
+        OstiumError,
+      );
     });
 
     it("rejects zero leverage", () => {
