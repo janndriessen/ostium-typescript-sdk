@@ -418,6 +418,21 @@ export class Subgraph {
     return data.metaDatas[0].liqMarginThresholdP;
   }
 
+  async getPairMaxLeverage(pairIndex: number): Promise<number | null> {
+    const pair = await this.getPairDetails(pairIndex);
+    if (!pair) return null;
+    const groupMax = Number(pair.group.maxLeverage);
+    const pairMax = Number(pair.maxLeverage);
+    return (groupMax === 0 ? pairMax : groupMax) / 100;
+  }
+
+  async getPairOvernightMaxLeverage(pairIndex: number): Promise<number | null> {
+    const pair = await this.getPairDetails(pairIndex);
+    if (!pair) return null;
+    const overnight = Number(pair.overnightMaxLeverage);
+    return overnight === 0 ? null : overnight / 100;
+  }
+
   async getOrderById(orderId: string): Promise<Order | null> {
     if (!orderId?.trim()) {
       throw new OstiumError("Invalid orderId: empty string", {

@@ -283,6 +283,58 @@ describe("Subgraph", () => {
     });
   });
 
+  describe("getPairMaxLeverage", () => {
+    it("returns group maxLeverage when set", async () => {
+      requestMock.mockResolvedValue({
+        pair: {
+          ...mockPair,
+          maxLeverage: "15000",
+          group: { ...mockPair.group, maxLeverage: "10000" },
+        },
+      });
+      const result = await subgraph.getPairMaxLeverage(0);
+      expect(result).toBe(100);
+    });
+
+    it("falls back to pair maxLeverage when group is zero", async () => {
+      requestMock.mockResolvedValue({
+        pair: { ...mockPair, maxLeverage: "15000", group: { ...mockPair.group, maxLeverage: "0" } },
+      });
+      const result = await subgraph.getPairMaxLeverage(0);
+      expect(result).toBe(150);
+    });
+
+    it("returns null when pair not found", async () => {
+      requestMock.mockResolvedValue({ pair: null });
+      const result = await subgraph.getPairMaxLeverage(999);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("getPairOvernightMaxLeverage", () => {
+    it("returns overnight leverage when set", async () => {
+      requestMock.mockResolvedValue({
+        pair: { ...mockPair, overnightMaxLeverage: "5000" },
+      });
+      const result = await subgraph.getPairOvernightMaxLeverage(0);
+      expect(result).toBe(50);
+    });
+
+    it("returns null when overnight leverage is zero", async () => {
+      requestMock.mockResolvedValue({
+        pair: { ...mockPair, overnightMaxLeverage: "0" },
+      });
+      const result = await subgraph.getPairOvernightMaxLeverage(0);
+      expect(result).toBeNull();
+    });
+
+    it("returns null when pair not found", async () => {
+      requestMock.mockResolvedValue({ pair: null });
+      const result = await subgraph.getPairOvernightMaxLeverage(999);
+      expect(result).toBeNull();
+    });
+  });
+
   describe("getOrderById", () => {
     const mockOrderEntity: Order = {
       id: "42",

@@ -308,6 +308,35 @@ export interface TrackOrderResult {
 }
 
 // ---------------------------------------------------------------------------
+// Convenience wrappers
+// ---------------------------------------------------------------------------
+
+export interface FormattedPair {
+  id: number;
+  from: string;
+  to: string;
+  group: string;
+  maxLeverage: number;
+  minLeverage: number;
+  makerMaxLeverage: number;
+  overnightMaxLeverage?: number;
+  maxOI: number;
+  longOI: number;
+  shortOI: number;
+  makerFeeP: number;
+  takerFeeP: number;
+  groupMaxCollateralP: number;
+  minLevPos: number;
+  lastFundingRate: number;
+  curFundingLong: number;
+  curFundingShort: number;
+  lastFundingBlock: number;
+  price?: number;
+  isMarketOpen?: boolean;
+  isDayTradingClosed?: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // Price API
 // ---------------------------------------------------------------------------
 
