@@ -108,6 +108,10 @@ await sdk.trading.closeTradeMarketTimeout(orderId!, false); // cancel (default)
 | `getOrderById(orderId)`                   | Single oracle order by ID                            |
 | `getTradeById(tradeId)`                   | Single trade by ID                                   |
 | `trackOrder(orderId, options?)`           | Poll until an order fills or cancels                 |
+| `getRecentHistory(address, count?)`       | Recent executed orders for a trader (default 10)     |
+| `getLiqMarginThresholdP()`                | Liquidation margin threshold from metadata           |
+| `getPairMaxLeverage(pairIndex)`           | Max leverage for a pair (with group fallback)        |
+| `getPairOvernightMaxLeverage(pairIndex)`  | Overnight max leverage (null if not configured)      |
 
 ### Order Tracking
 
@@ -125,6 +129,15 @@ if (trade) {
 ```
 
 Options: `intervalMs` (default 1000) and `maxAttempts` (default 30). Throws `OstiumError` if the order is not resolved within the polling budget.
+
+## Formatted Pairs
+
+`sdk.getFormattedPairsDetails()` returns all pairs with human-readable values (precision-scaled leverage, fees, OI) and optionally enriched with live prices:
+
+```typescript
+const pairs = await sdk.getFormattedPairsDetails(); // with prices
+const pairs = await sdk.getFormattedPairsDetails(false); // without prices
+```
 
 ## Price API
 

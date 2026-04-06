@@ -8,7 +8,7 @@ import { Balance } from "./modules/balance.js";
 import { Price } from "./modules/price.js";
 import { Subgraph } from "./modules/subgraph.js";
 import { Trading } from "./modules/trading.js";
-import type { NetworkConfig, OstiumSDKConfig } from "./types.js";
+import type { FormattedPair, NetworkConfig, OstiumSDKConfig, Pair, PriceData } from "./types.js";
 
 const CHAINS = { mainnet: arbitrum, testnet: arbitrumSepolia } as const;
 const CONFIGS = { mainnet: mainnetConfig, testnet: testnetConfig } as const;
@@ -71,6 +71,21 @@ export class OstiumSDK {
     return this._trading;
   }
 
+  async getFormattedPairsDetails(includePrices = true): Promise<FormattedPair[]> {
+    const pairs = await this.subgraph.getPairs();
+
+    const priceMap = new Map<string, PriceData>();
+    if (includePrices) {
+      for (const p of await this.price.getLatestPrices()) {
+        priceMap.set(`${p.from}-${p.to}`, p);
+      }
+    }
+
+    return pairs
+      .map((pair) => formatPair(pair, priceMap.get(`${pair.from}-${pair.to}`)))
+      .sort((a, b) => a.id - b.id);
+  }
+
   async connect(): Promise<void> {
     try {
       const chainId = await this._publicClient.getChainId();
@@ -88,4 +103,44 @@ export class OstiumSDK {
       });
     }
   }
+}
+
+function formatPair(pair: Pair, priceData?: PriceData): FormattedPair {
+  const groupMin = Number(pair.group.minLeverage);
+  const groupMax = Number(pair.group.maxLeverage);
+  const pairMax = Number(pair.maxLeverage);
+  const overnight = Number(pair.overnightMaxLeverage);
+
+  const formatted: FormattedPair = {
+    id: Number(pair.id),
+    from: pair.from,
+    to: pair.to,
+    group: pair.group.name,
+    maxLeverage: (groupMax === 0 ? pairMax : groupMax) / 100,
+    minLeverage: (groupMin === 0 ? groupMin : groupMin) / 100,
+    makerMaxLeverage: Number(pair.makerMaxLeverage) / 100,
+    maxOI: Number(pair.maxOI) / 1e6,
+    longOI: Number(pair.longOI) / 1e18,
+    shortOI: Number(pair.shortOI) / 1e18,
+    makerFeeP: Number(pair.makerFeeP) / 1e6,
+    takerFeeP: Number(pair.takerFeeP) / 1e6,
+    groupMaxCollateralP: Number(pair.group.maxCollateralP) / 100,
+    minLevPos: Number(pair.fee.minLevPos) / 1e6,
+    lastFundingRate: Number(pair.lastFundingRate) / 1e9,
+    curFundingLong: Number(pair.curFundingLong) / 1e9,
+    curFundingShort: Number(pair.curFundingShort) / 1e9,
+    lastFundingBlock: Number(pair.lastFundingBlock),
+  };
+
+  if (overnight !== 0) {
+    formatted.overnightMaxLeverage = overnight / 100;
+  }
+
+  if (priceData) {
+    formatted.price = priceData.mid;
+    formatted.isMarketOpen = priceData.isMarketOpen;
+    formatted.isDayTradingClosed = priceData.isDayTradingClosed;
+  }
+
+  return formatted;
 }

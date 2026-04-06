@@ -262,6 +262,41 @@ export interface Trade {
   timestamp: string;
 }
 
+export interface HistoryOrderPair {
+  id: string;
+  from: string;
+  to: string;
+  feed: string;
+  longOI: string;
+  shortOI: string;
+  group: { name: string };
+}
+
+export interface HistoryOrder {
+  id: string;
+  isBuy: boolean;
+  trader: string;
+  notional: string;
+  tradeNotional: string;
+  collateral: string;
+  leverage: string;
+  orderType: string;
+  orderAction: string;
+  price: string;
+  initiatedAt: string;
+  executedAt: string;
+  executedTx: string;
+  isCancelled: boolean;
+  cancelReason: string | null;
+  profitPercent: string;
+  totalProfitPercent: string;
+  isPending: boolean;
+  amountSentToTrader: string;
+  rolloverFee: string;
+  fundingFee: string;
+  pair: HistoryOrderPair;
+}
+
 export interface TrackOrderOptions {
   intervalMs?: number;
   maxAttempts?: number;
@@ -270,6 +305,35 @@ export interface TrackOrderOptions {
 export interface TrackOrderResult {
   order: Order;
   trade: Trade | null;
+}
+
+// ---------------------------------------------------------------------------
+// Convenience wrappers
+// ---------------------------------------------------------------------------
+
+export interface FormattedPair {
+  id: number;
+  from: string;
+  to: string;
+  group: string;
+  maxLeverage: number;
+  minLeverage: number;
+  makerMaxLeverage: number;
+  overnightMaxLeverage?: number;
+  maxOI: number;
+  longOI: number;
+  shortOI: number;
+  makerFeeP: number;
+  takerFeeP: number;
+  groupMaxCollateralP: number;
+  minLevPos: number;
+  lastFundingRate: number;
+  curFundingLong: number;
+  curFundingShort: number;
+  lastFundingBlock: number;
+  price?: number;
+  isMarketOpen?: boolean;
+  isDayTradingClosed?: boolean;
 }
 
 // ---------------------------------------------------------------------------

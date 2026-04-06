@@ -33,6 +33,11 @@ All core trading operations are ported from the Python SDK:
 | `balance.get_balance(address, refresh?)` | `balance.getBalances(address)` | Both balances; TS version is always parallel via `Promise.all` |
 | Network config (mainnet/testnet) | `mainnetConfig` / `testnetConfig` | Same addresses, same chain IDs |
 | BuilderFee struct | `BuilderFee` interface | Same struct |
+| `get_recent_history(trader, last_n_orders)` | `getRecentHistory(address, count?)` | Same query; TS keeps subgraph ordering |
+| `get_liq_margin_threshold_p()` | `getLiqMarginThresholdP()` | Same query; guards empty metadata |
+| `get_formatted_pairs_details(...)` | `getFormattedPairsDetails(includePrices?)` | Lives on OstiumSDK (composes subgraph + price) |
+| `get_pair_max_leverage(pair_id)` | `getPairMaxLeverage(pairIndex)` | Returns number with group fallback |
+| `get_pair_overnight_max_leverage(pair_id)` | `getPairOvernightMaxLeverage(pairIndex)` | Returns number or null |
 | PriceRequested event parsing | `extractOrderId(receipt)` | Same approach (keccak topic match) |
 
 ---
@@ -57,17 +62,6 @@ Every Python write method supports a `use_delegation` / `trader_address` branch 
 - Various rate calculation helpers
 
 The most complex module in the Python SDK, with compiled Rust dependencies for precision math.
-
-### Convenience Wrappers
-
-- `get_formatted_pairs_details()` (~60 LOC) — formatted pair listing with live price enrichment
-- `get_pair_max_leverage()` / `get_pair_overnight_max_leverage()` (~30 LOC) — wrappers over subgraph data
-
-### Additional Subgraph Queries
-
-- `get_recent_history(trader, last_n_orders)` — order history
-- `get_order_by_id(order_id)` / `get_trade_by_id(trade_id)` — single-entity lookups
-- `get_liq_margin_threshold_p()` — liquidation threshold (used by PnL calcs)
 
 ### Other Modules
 
@@ -101,8 +95,8 @@ Different language, different ecosystem — some choices were adapted for TypeSc
 | Metric | Value |
 |---|---|
 | Python SDK public methods | ~35 across all modules |
-| TypeScript SDK public methods | ~22 (8 trading + 7 subgraph + 3 balance + 2 price + client + connect) |
+| TypeScript SDK public methods | ~27 (8 trading + 11 subgraph + 3 balance + 2 price + getFormattedPairsDetails + connect + client) |
 | Core trading flow coverage | **100%** |
-| Python API surface ported | **~63%** by method count |
-| Features deferred | ~850+ lines equivalent |
+| Python API surface ported | **~77%** by method count |
+| Features deferred | ~680+ lines equivalent |
 | New in TypeScript | Strong typing, input validation, read-only mode, injectable logger |
