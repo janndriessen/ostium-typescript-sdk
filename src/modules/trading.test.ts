@@ -580,9 +580,7 @@ describe("Trading", () => {
 
     it("approves when allowance insufficient", async () => {
       readContractMock.mockResolvedValue(0n);
-      writeContractMock
-        .mockResolvedValueOnce("0xapprovalHash")
-        .mockResolvedValueOnce("0xhash");
+      writeContractMock.mockResolvedValueOnce("0xapprovalHash").mockResolvedValueOnce("0xhash");
       waitForTransactionReceiptMock.mockResolvedValue(mockSuccessReceipt);
       const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
 
@@ -700,10 +698,7 @@ describe("Trading", () => {
         status: "success",
         logs: [
           {
-            topics: [
-              PRICE_REQUESTED_TOPIC,
-              `0x${(99n).toString(16).padStart(64, "0")}`,
-            ],
+            topics: [PRICE_REQUESTED_TOPIC, `0x${99n.toString(16).padStart(64, "0")}`],
           },
         ],
       });

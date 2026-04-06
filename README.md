@@ -68,6 +68,8 @@ const trades = await sdk.subgraph.getOpenTrades("0x...");
 | `closeTrade(pairIndex, tradeIndex, marketPrice, closePercentage?, slippage?)` | Close all or part of a position             |
 | `updateTp(pairIndex, tradeIndex, newTp)`                                      | Set/update take profit (0 to remove)        |
 | `updateSl(pairIndex, tradeIndex, newSl)`                                      | Set/update stop loss (0 to remove)          |
+| `addCollateral(pairIndex, tradeIndex, amount)`                                | Add USDC collateral to an open position     |
+| `removeCollateral(pairIndex, tradeIndex, amount)`                             | Remove USDC collateral from an open position|
 | `cancelLimitOrder(pairIndex, orderIndex)`                                     | Cancel a pending limit/stop order           |
 | `updateLimitOrder(pairIndex, orderIndex, price?, tp?, sl?)`                   | Update an open limit order                  |
 | `openTradeMarketTimeout(orderId)`                                             | Recover a timed-out pending open (cancel)   |

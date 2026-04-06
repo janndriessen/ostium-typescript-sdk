@@ -253,9 +253,9 @@ describe("validation", () => {
     });
 
     it("rejects collateral values below 6-decimal USDC precision", () => {
-      expect(() =>
-        validateTradeParams({ ...validParams, collateral: 0.0000001 }),
-      ).toThrow(OstiumError);
+      expect(() => validateTradeParams({ ...validParams, collateral: 0.0000001 })).toThrow(
+        OstiumError,
+      );
     });
 
     it("rejects zero leverage", () => {
