@@ -24,6 +24,9 @@ All core trading operations are ported from the Python SDK:
 | `get_pair_details(pair_id)` | `getPairDetails(pairIndex)` | Identical query |
 | `get_open_trades(address)` | `getOpenTrades(address)` | Identical query |
 | `get_orders(trader)` | `getOrders(address)` | Identical query |
+| `get_order_by_id(order_id)` | `getOrderById(orderId)` | Identical query |
+| `get_trade_by_id(trade_id)` | `getTradeById(tradeId)` | Identical query |
+| `track_order_and_trade(subgraph_client, order_id)` | `trackOrder(orderId, options?)` | Lives on Subgraph (not Trading); supports partial closes |
 | `get_latest_prices()` / `get_price()` | `getLatestPrices()` / `getPrice(from, to)` | Same endpoint, same response shape |
 | `balance.get_usdc_balance(address)` | `balance.getUsdc(address)` | Raw 6-decimal bigint; no cache |
 | `balance.get_ether_balance(address)` | `balance.getEth(address)` | Native ETH balance in wei |
@@ -45,10 +48,6 @@ Every Python write method supports a `use_delegation` / `trader_address` branch 
 ### Withdraw (~30 LOC)
 
 - `withdraw(amount, receiving_address)` — USDC transfer
-
-### Order Tracking (~80 LOC)
-
-- `track_order_and_trade(subgraph_client, order_id)` — polls subgraph until order fills or cancels
 
 ### Formulae / PnL (~500+ LOC + Rust bindings)
 
@@ -102,8 +101,8 @@ Different language, different ecosystem — some choices were adapted for TypeSc
 | Metric | Value |
 |---|---|
 | Python SDK public methods | ~35 across all modules |
-| TypeScript SDK public methods | ~19 (8 trading + 4 subgraph + 3 balance + 2 price + client + connect) |
+| TypeScript SDK public methods | ~22 (8 trading + 7 subgraph + 3 balance + 2 price + client + connect) |
 | Core trading flow coverage | **100%** |
-| Python API surface ported | **~55%** by method count |
-| Features deferred | ~950+ lines equivalent |
+| Python API surface ported | **~63%** by method count |
+| Features deferred | ~850+ lines equivalent |
 | New in TypeScript | Strong typing, input validation, read-only mode, injectable logger |

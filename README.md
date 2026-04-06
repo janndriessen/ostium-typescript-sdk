@@ -99,12 +99,32 @@ await sdk.trading.closeTradeMarketTimeout(orderId!, false); // cancel (default)
 
 ## Subgraph Queries
 
-| Method                      | Description                                |
-| --------------------------- | ------------------------------------------ |
-| `getPairs()`                | All trading pairs with funding/OI/fee data |
-| `getPairDetails(pairIndex)` | Single pair by index                       |
-| `getOpenTrades(address)`    | Open positions for a trader                |
-| `getOrders(address)`        | Active limit/stop orders for a trader      |
+| Method                                    | Description                                          |
+| ----------------------------------------- | ---------------------------------------------------- |
+| `getPairs()`                              | All trading pairs with funding/OI/fee data           |
+| `getPairDetails(pairIndex)`               | Single pair by index                                 |
+| `getOpenTrades(address)`                  | Open positions for a trader                          |
+| `getOrders(address)`                      | Active limit/stop orders for a trader                |
+| `getOrderById(orderId)`                   | Single oracle order by ID                            |
+| `getTradeById(tradeId)`                   | Single trade by ID                                   |
+| `trackOrder(orderId, options?)`           | Poll until an order fills or cancels                 |
+
+### Order Tracking
+
+After opening or closing a trade, use `trackOrder` to wait for the oracle to fulfill the order:
+
+```typescript
+const { orderId } = await sdk.trading.openTrade(params, price.mid);
+const { order, trade } = await sdk.subgraph.trackOrder(orderId!);
+
+if (trade) {
+  console.log(`Trade filled at ${order.price}`);
+} else {
+  console.log(`Order cancelled: ${order.cancelReason}`);
+}
+```
+
+Options: `intervalMs` (default 1000) and `maxAttempts` (default 30). Throws `OstiumError` if the order is not resolved within the polling budget.
 
 ## Price API
 
