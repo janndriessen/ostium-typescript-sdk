@@ -18,6 +18,7 @@ import {
   toChainPrice,
   toChainSlippage,
   validateClosePercentage,
+  validateCollateralAmount,
   validateNonNegativePrice,
   validateOrderId,
   validateOrderIndex,
@@ -233,6 +234,83 @@ export class Trading {
     } catch (error) {
       if (error instanceof OstiumError) throw error;
       throw new OstiumError("updateSl failed", { cause: error });
+    }
+  }
+
+  async addCollateral(
+    pairIndex: number,
+    tradeIndex: number,
+    amount: number,
+  ): Promise<TransactionResult> {
+    validatePairIndex(pairIndex);
+    validateTradeIndex(tradeIndex);
+    validateCollateralAmount(amount);
+
+    const chainAmount = toChainCollateral(amount);
+
+    this.logger?.info(
+      `Adding ${amount} USDC collateral to trade ${tradeIndex} on pair ${pairIndex}`,
+    );
+
+    await this.ensureAllowance(chainAmount);
+
+    try {
+      const hash = await this.walletClient.writeContract({
+        account: this.account,
+        chain: null,
+        address: this.config.contracts.trading,
+        abi: tradingAbi,
+        functionName: "topUpCollateral",
+        args: [pairIndex, tradeIndex, chainAmount],
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("addCollateral transaction reverted");
+      }
+
+      return { transactionHash: hash, receipt };
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("addCollateral failed", { cause: error });
+    }
+  }
+
+  async removeCollateral(
+    pairIndex: number,
+    tradeIndex: number,
+    amount: number,
+  ): Promise<TransactionResult> {
+    validatePairIndex(pairIndex);
+    validateTradeIndex(tradeIndex);
+    validateCollateralAmount(amount);
+
+    const chainAmount = toChainCollateral(amount);
+
+    this.logger?.info(
+      `Removing ${amount} USDC collateral from trade ${tradeIndex} on pair ${pairIndex}`,
+    );
+
+    try {
+      const hash = await this.walletClient.writeContract({
+        account: this.account,
+        chain: null,
+        address: this.config.contracts.trading,
+        abi: tradingAbi,
+        functionName: "removeCollateral",
+        args: [pairIndex, tradeIndex, chainAmount],
+      });
+
+      const receipt = await this.publicClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("removeCollateral transaction reverted");
+      }
+
+      const orderId = extractOrderId(receipt);
+      return { transactionHash: hash, receipt, orderId };
+    } catch (error) {
+      if (error instanceof OstiumError) throw error;
+      throw new OstiumError("removeCollateral failed", { cause: error });
     }
   }
 

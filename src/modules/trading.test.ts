@@ -542,6 +542,195 @@ describe("Trading", () => {
     });
   });
 
+  describe("addCollateral", () => {
+    it("rejects invalid pairIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.addCollateral(-1, 0, 50)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects invalid tradeIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.addCollateral(0, 256, 50)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects zero amount", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.addCollateral(0, 0, 0)).rejects.toThrow(OstiumError);
+      expect(writeContractMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects negative amount", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.addCollateral(0, 0, -10)).rejects.toThrow(OstiumError);
+      expect(writeContractMock).not.toHaveBeenCalled();
+    });
+
+    it("calls ensureAllowance with scaled amount", async () => {
+      readContractMock.mockResolvedValue(1000000000n);
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue(mockSuccessReceipt);
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.addCollateral(0, 1, 50);
+
+      expect(readContractMock).toHaveBeenCalledWith(
+        expect.objectContaining({ functionName: "allowance" }),
+      );
+    });
+
+    it("approves when allowance insufficient", async () => {
+      readContractMock.mockResolvedValue(0n);
+      writeContractMock
+        .mockResolvedValueOnce("0xapprovalHash")
+        .mockResolvedValueOnce("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue(mockSuccessReceipt);
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.addCollateral(0, 1, 50);
+
+      expect(writeContractMock).toHaveBeenCalledTimes(2);
+      expect(writeContractMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          functionName: "approve",
+          args: [mockConfig.contracts.tradingStorage, 50000000n],
+        }),
+      );
+    });
+
+    it("sends correct args to contract", async () => {
+      readContractMock.mockResolvedValue(1000000000n);
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue(mockSuccessReceipt);
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.addCollateral(2, 1, 50);
+
+      expect(writeContractMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: "topUpCollateral",
+          args: [2, 1, 50000000n],
+        }),
+      );
+    });
+
+    it("returns TransactionResult without orderId", async () => {
+      readContractMock.mockResolvedValue(1000000000n);
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue(mockSuccessReceipt);
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      const result = await trading.addCollateral(0, 0, 50);
+
+      expect(result.transactionHash).toBe("0xhash");
+      expect(result.orderId).toBeUndefined();
+    });
+
+    it("throws on reverted receipt", async () => {
+      readContractMock.mockResolvedValue(1000000000n);
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.addCollateral(0, 0, 50)).rejects.toThrow(OstiumError);
+    });
+
+    it("wraps errors in OstiumError", async () => {
+      readContractMock.mockResolvedValue(1000000000n);
+      writeContractMock.mockRejectedValue(new Error("rpc error"));
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.addCollateral(0, 0, 50)).rejects.toThrow(OstiumError);
+    });
+  });
+
+  describe("removeCollateral", () => {
+    it("rejects invalid pairIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.removeCollateral(-1, 0, 50)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects invalid tradeIndex", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.removeCollateral(0, 256, 50)).rejects.toThrow(OstiumError);
+    });
+
+    it("rejects zero amount", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.removeCollateral(0, 0, 0)).rejects.toThrow(OstiumError);
+      expect(writeContractMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects negative amount", async () => {
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+      await expect(trading.removeCollateral(0, 0, -10)).rejects.toThrow(OstiumError);
+      expect(writeContractMock).not.toHaveBeenCalled();
+    });
+
+    it("does NOT call ensureAllowance", async () => {
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue(mockSuccessReceipt);
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.removeCollateral(0, 1, 50);
+
+      expect(readContractMock).not.toHaveBeenCalled();
+    });
+
+    it("sends correct args to contract", async () => {
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue(mockSuccessReceipt);
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await trading.removeCollateral(2, 1, 50);
+
+      expect(writeContractMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          functionName: "removeCollateral",
+          args: [2, 1, 50000000n],
+        }),
+      );
+    });
+
+    it("extracts orderId from PriceRequested event", async () => {
+      const PRICE_REQUESTED_TOPIC =
+        "0x8195bed39a3fd3cf674a481e5c9ebcec05361cfca110f800bedda374c24bdeea";
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue({
+        status: "success",
+        logs: [
+          {
+            topics: [
+              PRICE_REQUESTED_TOPIC,
+              `0x${(99n).toString(16).padStart(64, "0")}`,
+            ],
+          },
+        ],
+      });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      const result = await trading.removeCollateral(0, 0, 50);
+
+      expect(result.transactionHash).toBe("0xhash");
+      expect(result.orderId).toBe("99");
+    });
+
+    it("throws on reverted receipt", async () => {
+      writeContractMock.mockResolvedValue("0xhash");
+      waitForTransactionReceiptMock.mockResolvedValue({ status: "reverted" });
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.removeCollateral(0, 0, 50)).rejects.toThrow(OstiumError);
+    });
+
+    it("wraps errors in OstiumError", async () => {
+      writeContractMock.mockRejectedValue(new Error("rpc error"));
+      const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
+
+      await expect(trading.removeCollateral(0, 0, 50)).rejects.toThrow(OstiumError);
+    });
+  });
+
   describe("cancelLimitOrder", () => {
     it("rejects invalid pairIndex", async () => {
       const trading = new Trading(mockPublicClient, mockWalletClient, mockAccount, mockConfig);
